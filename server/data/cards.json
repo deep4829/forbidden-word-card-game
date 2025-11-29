@@ -1,0 +1,42 @@
+[
+  {
+    "id": "card-001",
+    "mainWord": "Ocean",
+    "forbiddenWords": ["water", "sea", "blue", "fish", "beach"]
+  },
+  {
+    "id": "card-002",
+    "mainWord": "Pizza",
+    "forbiddenWords": ["cheese", "Italian", "dough", "slice", "pepperoni"]
+  },
+  {
+    "id": "card-003",
+    "mainWord": "Computer",
+    "forbiddenWords": ["keyboard", "mouse", "screen", "laptop", "technology"]
+  },
+  {
+    "id": "card-004",
+    "mainWord": "Guitar",
+    "forbiddenWords": ["strings", "music", "instrument", "rock", "acoustic"]
+  },
+  {
+    "id": "card-005",
+    "mainWord": "Basketball",
+    "forbiddenWords": ["hoop", "ball", "court", "dribble", "NBA"]
+  },
+  {
+    "id": "card-006",
+    "mainWord": "Coffee",
+    "forbiddenWords": ["drink", "caffeine", "beans", "espresso", "latte"]
+  },
+  {
+    "id": "card-007",
+    "mainWord": "Library",
+    "forbiddenWords": ["books", "read", "quiet", "shelves", "borrow"]
+  },
+  {
+    "id": "card-008",
+    "mainWord": "Airplane",
+    "forbiddenWords": ["fly", "wings", "airport", "pilot", "travel"]
+  }
+]
