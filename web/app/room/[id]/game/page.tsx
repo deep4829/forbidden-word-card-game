@@ -1,0 +1,739 @@
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import socket from '@/lib/socket';
+import { useSpeechRecognition } from '@/lib/speech';
+import type { Room, Player, Card } from '@/types/game';
+
+interface ClueHistory {
+  transcript: string;
+  clueCount: number;
+  speakerId: string;
+}
+
+interface GuessResult {
+  correct: boolean;
+  guesserId: string;
+  guesserName: string;
+  guess: string;
+  targetWord?: string;
+  clueCount?: number;
+  points?: { speaker: number; guesser: number };
+  guessesUsed?: number;
+  isExhausted?: boolean;
+}
+
+interface ForbiddenDetected {
+  playerId: string;
+  playerName: string;
+  violations: string[];
+  penalty: number;
+}
+
+export default function GamePage() {
+  const params = useParams();
+  const router = useRouter();
+  const roomId = params.id as string;
+
+  const [room, setRoom] = useState<Room | null>(null);
+  const [currentPlayerId, setCurrentPlayerId] = useState<string>('');
+  const [currentCard, setCurrentCard] = useState<Card | null>(null);
+  const [clueHistory, setClueHistory] = useState<ClueHistory[]>([]);
+  const [guessInput, setGuessInput] = useState('');
+  const [manualClueInput, setManualClueInput] = useState('');
+  const [roundNumber, setRoundNumber] = useState(1);
+  const [feedback, setFeedback] = useState<string>('');
+  const [feedbackType, setFeedbackType] = useState<'success' | 'error' | 'info'>('info');
+  const [roundActive, setRoundActive] = useState(false);
+  const [useManualInput, setUseManualInput] = useState(false);
+
+  const isSpeaker = room?.currentClueGiver === currentPlayerId;
+
+  // Speech Recognition Hook
+  const { isListening, isSupported, transcript, start, stop } = useSpeechRecognition({
+    onResult: (transcript: string) => {
+      if (isSpeaker && roundActive && transcript.trim()) {
+        console.log('Sending clue:', transcript);
+        socket.emit('speaker-transcript', { roomId, transcript });
+        showFeedback('Clue sent!', 'success');
+      }
+    },
+    onError: (error: string) => {
+      console.error('Speech error:', error);
+      if (error === 'not-allowed' || error === 'permission-denied') {
+        showFeedback('Microphone permission denied. Please allow microphone access.', 'error');
+      } else if (error === 'no-speech') {
+        showFeedback('No speech detected. Try speaking again.', 'info');
+      } else {
+        showFeedback(`Speech recognition error: ${error}`, 'error');
+      }
+    },
+  });
+
+  // Set current player ID when socket connects
+  useEffect(() => {
+    if (socket.connected) {
+      setCurrentPlayerId(socket.id || '');
+    }
+
+    const onConnect = () => {
+      setCurrentPlayerId(socket.id || '');
+    };
+
+    socket.on('connect', onConnect);
+    return () => {
+      socket.off('connect', onConnect);
+    };
+  }, []);
+
+  // Create refs for latest state values
+  const isListeningRef = useRef(isListening);
+  const stopRef = useRef(stop);
+
+  useEffect(() => {
+    isListeningRef.current = isListening;
+  }, [isListening]);
+
+  useEffect(() => {
+    stopRef.current = stop;
+  }, [stop]);
+
+  // Socket event listeners
+  useEffect(() => {
+    // Room updated event
+    const onRoomUpdated = (updatedRoom: Room) => {
+      console.log('Room updated:', updatedRoom);
+      setRoom(updatedRoom);
+      // Also set the current card if it exists
+      if (updatedRoom.currentCard) {
+        console.log('Card from room update:', updatedRoom.currentCard);
+        setCurrentCard(updatedRoom.currentCard);
+      }
+    };
+
+    // Card assigned event (for speaker only)
+    const onCardAssigned = (data: { card: Card }) => {
+      console.log('Card assigned:', data.card);
+      setCurrentCard(data.card);
+    };
+
+    // Clue broadcast event
+    const onClueBroadcast = (data: ClueHistory) => {
+      setClueHistory((prev) => {
+        const updated = [...prev, data];
+        // Stop microphone if 4 clues have been given
+        if (updated.length >= 4 && isListeningRef.current) {
+          stopRef.current();
+          showFeedback('Maximum clues reached! Waiting for guesses...', 'info');
+        }
+        return updated;
+      });
+    };
+
+    // Forbidden detected event
+    const onForbiddenDetected = (data: ForbiddenDetected) => {
+      showFeedback(
+        `Forbidden word detected! ${data.playerName} said: ${data.violations.join(', ')} (${data.penalty} points)`,
+        'error'
+      );
+    };
+
+    // Guess result event
+    const onGuessResult = (data: GuessResult) => {
+      if (data.correct) {
+        showFeedback(
+          `Correct! ${data.guesserName} guessed "${data.targetWord}" in ${data.clueCount} clues!`,
+          'success'
+        );
+      } else {
+        showFeedback(
+          `Incorrect guess: "${data.guess}" by ${data.guesserName}`,
+          'error'
+        );
+      }
+    };
+
+    // Round ended event
+    const onRoundEnded = (data: any) => {
+      showFeedback('Round ended! Preparing next round...', 'success');
+      setClueHistory([]);
+      setCurrentCard(null);
+      setGuessInput('');
+      setRoundActive(false);
+      stopRef.current(); // Stop microphone if it's active
+      
+      // Update round number
+      setTimeout(() => {
+        setRoundNumber((prev) => prev + 1);
+      }, 2000);
+    };
+
+    // Score updated event
+    const onScoreUpdated = (data: { room: Room }) => {
+      setRoom(data.room);
+    };
+
+    // Game started event
+    const onGameStarted = (data: { room: Room; roundNumber: number; currentClueGiver: string }) => {
+      console.log('Game started:', data);
+      setRoom(data.room);
+      setRoundNumber(data.roundNumber);
+      
+      // If the current player is the speaker, request the card
+      // This handles the race condition where card-assigned was emitted before listener was ready
+      if (data.currentClueGiver === currentPlayerId && roomId) {
+        console.log('Player is speaker, requesting card assignment...');
+        socket.emit('get-room', roomId);
+      }
+    };
+
+    // Error event
+    const onError = (data: { message: string }) => {
+      showFeedback(data.message, 'error');
+    };
+
+    socket.on('room-updated', onRoomUpdated);
+    socket.on('card-assigned', onCardAssigned);
+    socket.on('clue-broadcast', onClueBroadcast);
+    socket.on('forbidden-detected', onForbiddenDetected);
+    socket.on('guess-result', onGuessResult);
+    socket.on('round-ended', onRoundEnded);
+    socket.on('score-updated', onScoreUpdated);
+    socket.on('game-started', onGameStarted);
+    socket.on('error', onError);
+
+    return () => {
+      socket.off('room-updated', onRoomUpdated);
+      socket.off('card-assigned', onCardAssigned);
+      socket.off('clue-broadcast', onClueBroadcast);
+      socket.off('forbidden-detected', onForbiddenDetected);
+      socket.off('guess-result', onGuessResult);
+      socket.off('round-ended', onRoundEnded);
+      socket.off('score-updated', onScoreUpdated);
+      socket.off('game-started', onGameStarted);
+      socket.off('error', onError);
+    };
+  }, [roomId, currentPlayerId]);
+
+  // Request initial room data when page loads
+  useEffect(() => {
+    if (roomId && socket.connected) {
+      console.log('Requesting room data for game page:', roomId);
+      socket.emit('get-room', roomId);
+    }
+  }, [roomId]);
+
+  const showFeedback = (message: string, type: 'success' | 'error' | 'info') => {
+    setFeedback(message);
+    setFeedbackType(type);
+    setTimeout(() => setFeedback(''), 5000);
+  };
+
+  const handleGuessSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!guessInput.trim()) return;
+
+    socket.emit('guesser-guess', { roomId, guess: guessInput.trim() });
+    setGuessInput('');
+  };
+
+  const handleManualClueSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualClueInput.trim()) return;
+
+    const clue = manualClueInput.trim();
+    console.log('Sending manual clue:', clue);
+    socket.emit('speaker-transcript', { roomId, transcript: clue });
+    setManualClueInput('');
+    showFeedback('Clue sent!', 'success');
+  };
+
+  const handleStartRound = () => {
+    if (!currentCard) {
+      showFeedback('Waiting for card...', 'error');
+      return;
+    }
+    setRoundActive(true);
+    showFeedback('Round started! Microphone activated. Start speaking!', 'success');
+    // Auto-start microphone
+    setTimeout(() => {
+      if (isSupported) {
+        start();
+      }
+    }, 500);
+  };
+
+  const toggleMic = () => {
+    if (!roundActive) {
+      showFeedback('Please start the round first!', 'error');
+      return;
+    }
+    if (clueHistory.length >= 4) {
+      showFeedback('Maximum 4 clues already given!', 'error');
+      return;
+    }
+    if (isListening) {
+      stop();
+    } else {
+      start();
+    }
+  };
+
+  const currentPlayer = room?.players.find((p) => p.id === currentPlayerId);
+  const speaker = room?.players.find((p) => p.id === room.currentClueGiver);
+  const guessesUsed = currentPlayer?.guessesUsed || 0;
+  const maxGuesses = 3;
+
+  if (!room) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-purple-900">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-white mb-4"></div>
+          <p className="text-white text-xl font-semibold">Loading game...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 p-3 sm:p-4 md:p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* ScoreBoard Component */}
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-4 sm:p-6 mb-4 sm:mb-6">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap items-center justify-between gap-3 sm:gap-4">
+            {/* Round Info */}
+            <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 w-full sm:w-auto">
+              <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 sm:px-8 sm:py-4 rounded-xl font-bold text-lg sm:text-xl shadow-lg min-h-[48px] flex items-center justify-center">
+                Round {roundNumber}
+              </div>
+              <div className="text-gray-800 text-center sm:text-left">
+                <span className="font-semibold text-base sm:text-lg">Speaker:</span>{' '}
+                <span className="text-purple-700 font-bold text-base sm:text-lg">{speaker?.name || 'Unknown'}</span>
+              </div>
+            </div>
+
+            {/* Team Scores */}
+            <div className="flex gap-4 sm:gap-8 w-full sm:w-auto justify-center">
+              <div className="text-center bg-blue-50 px-6 py-3 rounded-xl border-2 border-blue-200 min-w-[100px]">
+                <p className="text-xs sm:text-sm font-bold text-blue-800 uppercase tracking-wide mb-1">Team A</p>
+                <p className="text-3xl sm:text-4xl font-black text-blue-600">{room.teamAScore}</p>
+              </div>
+              <div className="text-center bg-red-50 px-6 py-3 rounded-xl border-2 border-red-200 min-w-[100px]">
+                <p className="text-xs sm:text-sm font-bold text-red-800 uppercase tracking-wide mb-1">Team B</p>
+                <p className="text-3xl sm:text-4xl font-black text-red-600">{room.teamBScore}</p>
+              </div>
+            </div>
+
+            {/* Players Quick View */}
+            <div className="flex flex-wrap gap-2 justify-center sm:justify-start w-full sm:w-auto">
+              {room.players.map((player) => (
+                <div
+                  key={player.id}
+                  className={`px-4 py-3 rounded-lg text-sm font-bold min-h-[48px] min-w-[48px] flex items-center justify-center shadow-md transition-transform hover:scale-105 ${
+                    player.id === currentPlayerId
+                      ? 'bg-purple-600 text-white ring-2 ring-purple-300'
+                      : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                  }`}
+                  title={`${player.name}: ${player.score} pts`}
+                >
+                  {player.name.charAt(0).toUpperCase()}
+                  <span className="ml-1 text-xs font-extrabold">{player.score}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Feedback Banner */}
+        {feedback && (
+          <div
+            className={`rounded-xl p-4 sm:p-5 mb-4 sm:mb-6 font-bold text-center text-base sm:text-lg shadow-2xl min-h-[60px] flex items-center justify-center ${
+              feedbackType === 'success'
+                ? 'bg-green-600 text-white border-2 border-green-400'
+                : feedbackType === 'error'
+                ? 'bg-red-600 text-white border-2 border-red-400'
+                : 'bg-blue-600 text-white border-2 border-blue-400'
+            }`}
+          >
+            {feedback}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          {/* Main Content Area */}
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+            {isSpeaker ? (
+              /* Speaker View */
+              <>
+                {/* Card View Component */}
+                <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-5 sm:p-8">
+                  <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-4 sm:mb-6 text-center">
+                    Your Card 🎴
+                  </h2>
+                  
+                  {currentCard ? (
+                    <div className="space-y-4 sm:space-y-6">
+                      {/* Target Word */}
+                      <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl sm:rounded-2xl p-6 sm:p-10 text-center shadow-lg border-4 border-green-400">
+                        <p className="text-white text-xs sm:text-sm font-bold mb-2 uppercase tracking-widest">
+                          Target Word
+                        </p>
+                        <p className="text-white text-3xl sm:text-5xl md:text-6xl font-black break-words">
+                          {currentCard.mainWord}
+                        </p>
+                      </div>
+
+                      {/* Forbidden Words */}
+                      <div className="bg-red-50 rounded-xl sm:rounded-2xl p-5 sm:p-6 border-4 border-red-400 shadow-lg">
+                        <p className="text-red-800 text-sm sm:text-base font-bold mb-4 uppercase tracking-wider text-center">
+                          🚫 Forbidden Words
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                          {currentCard.forbiddenWords.map((word, index) => (
+                            <div
+                              key={index}
+                              className="bg-red-200 text-red-900 font-bold text-center py-4 px-4 rounded-lg border-2 border-red-400 text-base sm:text-lg min-h-[56px] flex items-center justify-center shadow-md"
+                            >
+                              {word}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="text-6xl sm:text-7xl mb-4">🎴</div>
+                      <p className="text-gray-600 text-lg font-medium">Waiting for card...</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Mic Control Component */}
+                <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-5 sm:p-8">
+                  <div className="flex items-center justify-between mb-4 sm:mb-6">
+                    <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
+                      Voice Control 🎤
+                    </h3>
+                    {isSupported && roundActive && (
+                      <button
+                        onClick={() => setUseManualInput(!useManualInput)}
+                        className={`text-xs sm:text-sm px-3 sm:px-4 py-2 rounded-lg font-bold transition-all ${
+                          useManualInput
+                            ? 'bg-orange-600 text-white ring-2 ring-orange-300'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        {useManualInput ? '📝 Text Mode' : '🎤 Mic Mode'}
+                      </button>
+                    )}
+                  </div>
+                  
+                  {!isSupported ? (
+                    <div className="text-center py-8 space-y-4">
+                      <p className="text-red-700 font-bold text-base sm:text-lg">
+                        ⚠️ Speech recognition is not supported in your browser
+                      </p>
+                      <p className="text-gray-700 text-sm sm:text-base mb-4">
+                        Recommended: Chrome, Edge, or Safari
+                      </p>
+                      <p className="text-gray-600 text-sm">
+                        You can still play using manual text input below!
+                      </p>
+                      <button
+                        onClick={() => setUseManualInput(true)}
+                        className="px-6 py-3 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-700 transition-colors"
+                      >
+                        Switch to Manual Input
+                      </button>
+                    </div>
+                  ) : !roundActive ? (
+                    /* Start Round Button - Shown before round starts */
+                    <div className="text-center py-8 space-y-6">
+                      <div className="text-6xl sm:text-7xl mb-4">🎯</div>
+                      <p className="text-gray-700 text-base sm:text-lg font-medium mb-6">
+                        Ready to give clues? Start the round when you&apos;re prepared!
+                      </p>
+                      <button
+                        onClick={handleStartRound}
+                        disabled={!currentCard}
+                        className="px-8 py-5 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xl sm:text-2xl font-bold rounded-xl hover:from-green-600 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95 shadow-2xl min-h-[64px] uppercase tracking-wide"
+                      >
+                        🚀 Start Round
+                      </button>
+                      {!currentCard && (
+                        <p className="text-sm text-gray-500 mt-2">Waiting for card assignment...</p>
+                      )}
+                    </div>
+                  ) : useManualInput ? (
+                    /* Manual Text Input Mode */
+                    <form onSubmit={handleManualClueSubmit} className="space-y-6">
+                      <div>
+                        <label htmlFor="manualClue" className="block text-sm font-bold text-gray-700 mb-3">
+                          Type your clue:
+                        </label>
+                        <textarea
+                          id="manualClue"
+                          value={manualClueInput}
+                          onChange={(e) => setManualClueInput(e.target.value)}
+                          placeholder="Type a clue to help guessers find the word..."
+                          className="w-full px-4 sm:px-5 py-3 sm:py-4 text-base sm:text-lg border-4 border-gray-300 rounded-xl focus:ring-4 focus:ring-orange-500 focus:border-orange-500 outline-none transition text-gray-900 font-medium placeholder-gray-500 shadow-inner min-h-[100px] resize-none"
+                          disabled={clueHistory.length >= 4}
+                          maxLength={200}
+                        />
+                        <p className="text-xs text-gray-500 mt-2">
+                          {manualClueInput.length}/200 characters
+                        </p>
+                      </div>
+
+                      <div className="space-y-3">
+                        <button
+                          type="submit"
+                          disabled={!manualClueInput.trim() || clueHistory.length >= 4}
+                          className="w-full py-4 sm:py-5 bg-gradient-to-r from-orange-600 to-red-600 text-white text-lg sm:text-xl font-black rounded-xl hover:from-orange-700 hover:to-red-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95 shadow-2xl min-h-[56px] uppercase tracking-wide"
+                        >
+                          {clueHistory.length >= 4 ? '🚫 Max Clues Reached' : '📤 Submit Clue'}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUseManualInput(false);
+                            stop();
+                          }}
+                          className="w-full py-3 bg-gray-300 text-gray-800 font-bold rounded-lg hover:bg-gray-400 transition-colors"
+                        >
+                          Back to Mic
+                        </button>
+                      </div>
+
+                      <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-3 text-sm text-gray-700">
+                        <p className="font-semibold mb-1">💡 Tips:</p>
+                        <ul className="list-disc list-inside space-y-1 text-xs">
+                          <li>Type clear, descriptive clues</li>
+                          <li>Avoid using the forbidden words</li>
+                          <li>Maximum 4 clues per round</li>
+                        </ul>
+                      </div>
+
+                      <div className="flex items-center justify-center gap-3 py-3 border-t-2 border-gray-200">
+                        <span className="text-sm font-medium text-gray-600">Clues given:</span>
+                        <span className="text-2xl font-black text-purple-600">{clueHistory.length}</span>
+                        <span className="text-sm text-gray-500">/ 4 max</span>
+                      </div>
+                    </form>
+                  ) : (
+                    /* Microphone Input Mode */
+                    <div className="space-y-6">
+                      {/* Mic Button */}
+                      <div className="flex justify-center">
+                        <button
+                          onClick={toggleMic}
+                          disabled={clueHistory.length >= 4}
+                          aria-label={isListening ? 'Stop recording' : 'Start recording'}
+                          className={`w-32 h-32 sm:w-36 sm:h-36 md:w-40 md:h-40 rounded-full flex items-center justify-center text-6xl sm:text-7xl transition-all transform shadow-2xl min-h-[128px] min-w-[128px] ${
+                            clueHistory.length >= 4
+                              ? 'bg-gray-400 cursor-not-allowed'
+                              : isListening
+                              ? 'bg-red-600 hover:bg-red-700 animate-pulse ring-4 ring-red-300 hover:scale-110 active:scale-95'
+                              : 'bg-blue-600 hover:bg-blue-700 ring-4 ring-blue-300 hover:scale-110 active:scale-95'
+                          }`}
+                        >
+                          {clueHistory.length >= 4 ? '🚫' : isListening ? '🔴' : '🎤'}
+                        </button>
+                      </div>
+
+                      {/* Status */}
+                      <div className="text-center space-y-2">
+                        <p className="text-base sm:text-lg md:text-xl font-bold text-gray-900">
+                          {isListening ? '🎙️ Listening... Speak now!' : 'Click mic to speak'}
+                        </p>
+                        <div className="flex items-center justify-center gap-3">
+                          <span className="text-sm font-medium text-gray-600">Clues given:</span>
+                          <span className="text-2xl font-black text-purple-600">{clueHistory.length}</span>
+                          <span className="text-sm text-gray-500">/ 4 max</span>
+                        </div>
+                        {clueHistory.length >= 4 && (
+                          <p className="text-red-600 font-bold text-sm">⚠️ Maximum clues reached!</p>
+                        )}
+                      </div>
+
+                      {/* Live Transcript */}
+                      {transcript && (
+                        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4 sm:p-5 border-2 border-blue-300 shadow-lg animate-pulse">
+                          <p className="text-xs sm:text-sm font-bold text-blue-700 mb-2 uppercase tracking-wide">
+                            🎤 Live Transcript:
+                          </p>
+                          <p className="text-gray-900 text-base sm:text-lg italic font-medium">&quot;{transcript}&quot;</p>
+                        </div>
+                      )}
+
+                      {/* Help Text */}
+                      <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-3 text-sm text-gray-700">
+                        <p className="font-semibold mb-1">💡 Tips:</p>
+                        <ul className="list-disc list-inside space-y-1 text-xs">
+                          <li>Speak clearly and pause between clues</li>
+                          <li>Each sentence you complete is sent as a clue</li>
+                          <li>Avoid forbidden words or lose points!</li>
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              /* Guesser View */
+              <>
+                {/* Clue History */}
+                <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-5 sm:p-8">
+                  <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-4 sm:mb-6 text-center">
+                    Clues Received 💬
+                  </h2>
+                  
+                  {clueHistory.length > 0 ? (
+                    <div className="space-y-3 max-h-80 sm:max-h-96 overflow-y-auto pr-2">
+                      {clueHistory.map((clue, index) => (
+                        <div
+                          key={index}
+                          className="bg-gradient-to-r from-blue-100 to-purple-100 rounded-xl p-4 sm:p-5 border-l-4 border-blue-600 shadow-md hover:shadow-lg transition-shadow"
+                        >
+                          <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
+                            <p className="text-gray-900 text-base sm:text-lg font-medium flex-1">
+                              &quot;{clue.transcript}&quot;
+                            </p>
+                            <span className="bg-blue-600 text-white text-xs sm:text-sm font-bold px-3 py-2 rounded-full whitespace-nowrap shadow-md">
+                              Clue #{clue.clueCount}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="text-6xl sm:text-7xl mb-4">👂</div>
+                      <p className="text-gray-600 text-base sm:text-lg font-medium">Waiting for clues from the speaker...</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Guess Input Component */}
+                <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-5 sm:p-8">
+                  <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 text-center">
+                    Make Your Guess 🎯
+                  </h3>
+                  
+                  {/* Guesses Remaining */}
+                  <div className="mb-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <span className="text-gray-900 font-bold text-base sm:text-lg">Guesses Remaining:</span>
+                    <div className="flex gap-2">
+                      {Array.from({ length: maxGuesses }).map((_, index) => (
+                        <div
+                          key={index}
+                          className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-bold text-lg shadow-md min-h-[48px] min-w-[48px] ${
+                            index < maxGuesses - guessesUsed
+                              ? 'bg-green-600 text-white ring-2 ring-green-300'
+                              : 'bg-gray-400 text-gray-700 ring-2 ring-gray-300'
+                          }`}
+                        >
+                          {index < maxGuesses - guessesUsed ? '✓' : '✗'}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Guess Form */}
+                  <form onSubmit={handleGuessSubmit} className="space-y-4">
+                    <input
+                      type="text"
+                      value={guessInput}
+                      onChange={(e) => setGuessInput(e.target.value)}
+                      placeholder="Type your guess..."
+                      aria-label="Guess input"
+                      className="w-full px-5 sm:px-6 py-4 sm:py-5 text-base sm:text-lg md:text-xl border-4 border-gray-300 rounded-xl focus:ring-4 focus:ring-purple-500 focus:border-purple-500 outline-none transition text-gray-900 font-medium placeholder-gray-500 shadow-inner min-h-[56px]"
+                      disabled={guessesUsed >= maxGuesses}
+                      maxLength={50}
+                    />
+                    <button
+                      type="submit"
+                      disabled={!guessInput.trim() || guessesUsed >= maxGuesses}
+                      className="w-full py-4 sm:py-5 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-lg sm:text-xl font-black rounded-xl hover:from-purple-700 hover:to-pink-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95 shadow-2xl min-h-[56px] uppercase tracking-wide"
+                    >
+                      {guessesUsed >= maxGuesses ? '🚫 No Guesses Left' : '🎯 Submit Guess'}
+                    </button>
+                  </form>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Sidebar - Player Details */}
+          <div className="space-y-4 sm:space-y-6">
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-5 sm:p-6">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Players</h3>
+              <div className="space-y-3">
+                {room.players.map((player) => (
+                  <div
+                    key={player.id}
+                    className={`p-4 sm:p-5 rounded-xl border-3 shadow-md transition-all hover:shadow-lg min-h-[72px] ${
+                      player.id === room.currentClueGiver
+                        ? 'bg-yellow-100 border-yellow-500 ring-2 ring-yellow-300'
+                        : player.id === currentPlayerId
+                        ? 'bg-purple-100 border-purple-500 ring-2 ring-purple-300'
+                        : 'bg-gray-100 border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-bold text-gray-900 flex flex-wrap items-center gap-2 text-base sm:text-lg">
+                          {player.name}
+                          {player.id === currentPlayerId && (
+                            <span className="text-xs sm:text-sm bg-purple-700 text-white px-3 py-1 rounded-full font-extrabold">
+                              You
+                            </span>
+                          )}
+                          {player.id === room.currentClueGiver && (
+                            <span className="text-xs sm:text-sm bg-yellow-600 text-white px-3 py-1 rounded-full font-extrabold">
+                              🎤 Speaker
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-sm sm:text-base text-gray-700 font-medium mt-1">
+                          Team {player.team || 'None'} • <span className="font-bold">{player.score} pts</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Game Info */}
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-5 sm:p-6">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Game Info</h3>
+              <div className="space-y-4 text-sm sm:text-base">
+                <div className="flex justify-between items-center py-2 border-b-2 border-gray-200">
+                  <span className="text-gray-700 font-medium">Your Role:</span>
+                  <span className="font-black text-gray-900 text-base sm:text-lg">
+                    {isSpeaker ? '🎤 Speaker' : '🎯 Guesser'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b-2 border-gray-200">
+                  <span className="text-gray-700 font-medium">Clues Given:</span>
+                  <span className="font-black text-gray-900 text-base sm:text-lg">{clueHistory.length}</span>
+                </div>
+                {!isSpeaker && (
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-gray-700 font-medium">Your Guesses:</span>
+                    <span className="font-black text-gray-900 text-base sm:text-lg">
+                      {guessesUsed} / {maxGuesses}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

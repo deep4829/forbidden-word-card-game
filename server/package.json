@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "ts-node server.ts",
+    "dev:https": "ts-node server.ts",
     "start": "node server.js",
     "test": "jest",
     "test:watch": "jest --watch",

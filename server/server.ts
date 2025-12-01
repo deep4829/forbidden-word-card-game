@@ -1,5 +1,8 @@
 import express from 'express';
 import { createServer } from 'http';
+import { createSecureServer } from 'http2';
+import * as fs from 'fs';
+import * as path from 'path';
 import { Server } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
 import { Room, Player, Card } from './types/game';
@@ -8,7 +11,33 @@ import { checkForbidden, normalize } from './utils/forbiddenCheck';
 import { computePoints } from './utils/scoring';
 
 const app = express();
-const httpServer = createServer(app);
+
+// Check if HTTPS certificate is available
+const certPath = path.join(__dirname, '..', 'localhost.crt');
+const pfxPath = path.join(__dirname, '..', 'localhost.pfx');
+const useHttps = fs.existsSync(pfxPath) || fs.existsSync(certPath);
+
+let httpServer;
+
+if (useHttps && fs.existsSync(pfxPath)) {
+  try {
+    const pfxData = fs.readFileSync(pfxPath);
+    const https = require('https');
+    httpServer = https.createServer(
+      {
+        pfx: pfxData,
+        passphrase: 'localhost123'
+      },
+      app
+    );
+    console.log('✅ Using HTTPS with self-signed certificate');
+  } catch (err) {
+    console.warn('⚠️  Failed to create HTTPS server, falling back to HTTP:', (err as Error).message);
+    httpServer = createServer(app);
+  }
+} else {
+  httpServer = createServer(app);
+}
 
 const io = new Server(httpServer, {
   cors: {
@@ -84,7 +113,7 @@ function addPlayerToRoom(room: Room, player: Player): boolean {
   if (existingPlayer) {
     return false;
   }
-  
+
   room.players.push(player);
   return true;
 }
@@ -102,24 +131,24 @@ function startGame(room: Room): boolean {
   if (room.players.length !== 4) {
     return false;
   }
-  
+
   // Initialize game state
   room.gameStarted = true;
   room.roundInProgress = false;
   roomRounds.set(room.id, 1);
   roomClueCount.set(room.id, 0);
-  
+
   // Assign first speaker (first player in the list)
   room.currentClueGiver = room.players[0].id;
-  
+
   // Load and shuffle deck for this room
   const deck = loadAndShuffleDeck();
   roomDecks.set(room.id, deck);
-  
+
   // Draw first card
   const firstCard = drawNextCard(room);
   room.currentCard = firstCard;
-  
+
   return true;
 }
 
@@ -127,9 +156,15 @@ function startGame(room: Room): boolean {
 function drawNextCard(room: Room): Card | null {
   const deck = roomDecks.get(room.id);
   if (!deck || deck.length === 0) {
-    return null;
+    // Ensure the deck is initialized if missing
+    if (!deck || deck.length === 0) {
+      console.warn(`Deck for room ${room.id} is empty or missing. Reinitializing...`);
+      const newDeck = loadAndShuffleDeck();
+      roomDecks.set(room.id, newDeck);
+      return newDeck.shift() || null;
+    }
   }
-  
+
   // Pop the first card from the deck
   const card = deck.shift();
   return card || null;
@@ -145,65 +180,65 @@ function handleClueSubmission(room: Room, clue: string): { valid: boolean; viola
 function endRound(room: Room, speakerId: string, guesserId: string): { speakerBonus: number; guesserBonus: number } {
   const clueCount = roomClueCount.get(room.id) || 0;
   const points = computePoints(clueCount);
-  
+
   // Award base points to speaker and guesser
   const speaker = room.players.find((p) => p.id === speakerId);
   const guesser = room.players.find((p) => p.id === guesserId);
-  
+
   let speakerBonus = 0;
   let guesserBonus = 0;
-  
+
   if (speaker) {
     speaker.score += points.speaker;
-    
+
     // Calculate unused clues bonus: +1 per unused clue (max 4 clues)
     const unusedClues = Math.max(0, 4 - clueCount);
     speakerBonus = unusedClues;
     speaker.score += speakerBonus;
   }
-  
+
   if (guesser) {
     guesser.score += points.guesser;
-    
+
     // Calculate unused guesses bonus: +0.5 per unused guess (max 3 guesses)
     const guessesUsed = guesser.guessesUsed || 0;
     const unusedGuesses = Math.max(0, 3 - guessesUsed);
     guesserBonus = unusedGuesses * 0.5;
     guesser.score += guesserBonus;
   }
-  
+
   // Update team scores
   if (speaker?.team === 'A') {
     room.teamAScore += points.speaker + speakerBonus;
   } else if (speaker?.team === 'B') {
     room.teamBScore += points.speaker + speakerBonus;
   }
-  
+
   if (guesser?.team === 'A') {
     room.teamAScore += points.guesser + guesserBonus;
   } else if (guesser?.team === 'B') {
     room.teamBScore += points.guesser + guesserBonus;
   }
-  
+
   // Reset round state
   room.roundInProgress = false;
   room.currentCard = null;
   roomClueCount.set(room.id, 0);
-  
+
   // Reset guesses used for all players
   room.players.forEach((p) => {
     p.guessesUsed = 0;
   });
-  
+
   // Transition to next speaker (round-robin)
   const currentSpeakerIndex = room.players.findIndex((p) => p.id === room.currentClueGiver);
   const nextSpeakerIndex = (currentSpeakerIndex + 1) % room.players.length;
   room.currentClueGiver = room.players[nextSpeakerIndex].id;
-  
+
   // Increment round number
   const currentRound = roomRounds.get(room.id) || 1;
   roomRounds.set(room.id, currentRound + 1);
-  
+
   return { speakerBonus, guesserBonus };
 }
 
@@ -212,82 +247,94 @@ io.on('connection', (socket) => {
 
   // Handle create-room event
   socket.on('create-room', (playerName: string) => {
+    console.log(`[create-room] Received request from ${socket.id} with name: ${playerName}`);
     const roomId = uuidv4();
     const player = createPlayer(socket.id, playerName);
     const room = createRoom(roomId, player);
-    
+
     rooms.set(roomId, room);
     socket.join(roomId);
-    
+
+    console.log(`[create-room] Emitting room-created event to socket ${socket.id} for room ${roomId}`);
     socket.emit('room-created', { roomId, room });
     io.to(roomId).emit('room-updated', room);
-    
+
     console.log(`Room created: ${roomId} by ${playerName}`);
+  });
+
+  // Handle get-room event
+  socket.on('get-room', (roomId: string) => {
+    const room = getRoom(roomId);
+    if (room) {
+      socket.emit('room-updated', room);
+    } else {
+      socket.emit('error', { message: 'Room not found' });
+    }
   });
 
   // Handle join-room event
   socket.on('join-room', (data: { roomId: string; playerName: string }) => {
     const { roomId, playerName } = data;
     const room = getRoom(roomId);
-    
+
     if (!room) {
       socket.emit('error', { message: 'Room not found' });
       return;
     }
-    
+
     // Add player to room using helper function
     const player = createPlayer(socket.id, playerName);
     const added = addPlayerToRoom(room, player);
-    
+
     if (!added) {
       socket.emit('error', { message: 'You are already in this room' });
       return;
     }
-    
+
     socket.join(roomId);
     socket.emit('room-joined', { roomId, room });
     io.to(roomId).emit('room-updated', room);
-    
+
     console.log(`Player ${playerName} joined room: ${roomId}`);
   });
 
   // Handle start-game event
   socket.on('start-game', (roomId: string) => {
     const room = getRoom(roomId);
-    
+
     if (!room) {
       socket.emit('error', { message: 'Room not found' });
       return;
     }
-    
+
     // Validate room size (must have exactly 4 players)
     if (room.players.length !== 4) {
       socket.emit('error', { message: 'Game requires exactly 4 players to start' });
       return;
     }
-    
+
     // Start the game
     const started = startGame(room);
-    
+
     if (!started) {
       socket.emit('error', { message: 'Failed to start game' });
       return;
     }
-    
+
     // Emit game-started to all players in the room
     io.to(roomId).emit('game-started', {
       room,
       roundNumber: roomRounds.get(roomId),
       currentClueGiver: room.currentClueGiver,
     });
-    
+
     // Emit card-assigned only to the current speaker
     if (room.currentClueGiver && room.currentCard) {
       io.to(room.currentClueGiver).emit('card-assigned', {
         card: room.currentCard,
       });
     }
-    
+
     console.log(`Game started in room ${roomId}, Speaker: ${room.currentClueGiver}`);
   });
 
@@ -295,36 +342,43 @@ io.on('connection', (socket) => {
   socket.on('speaker-transcript', (data: { roomId: string; transcript: string }) => {
     const { roomId, transcript } = data;
     const room = getRoom(roomId);
-    
+
     if (!room) {
       socket.emit('error', { message: 'Room not found' });
       return;
     }
-    
+
     // Verify that the sender is the current clue giver
     if (room.currentClueGiver !== socket.id) {
       socket.emit('error', { message: 'Only the current speaker can give clues' });
       return;
     }
-    
+
     // Check if there's a current card
     if (!room.currentCard) {
       socket.emit('error', { message: 'No card is currently active' });
       return;
     }
-    
+
+    // Check clue limit (max 4 clues per round)
+    const currentClueCount = roomClueCount.get(roomId) || 0;
+    if (currentClueCount >= 4) {
+      socket.emit('error', { message: 'Maximum clues reached (4 clues per round)' });
+      return;
+    }
+
     // Check for forbidden words
     const violations = checkForbidden(transcript, [
       room.currentCard.mainWord,
       ...room.currentCard.forbiddenWords,
     ]);
-    
+
     if (violations.length > 0) {
       // Apply -5 penalty to the speaker
       const speaker = room.players.find((p) => p.id === socket.id);
       if (speaker) {
         speaker.score -= 5;
-        
+
         // Broadcast forbidden word detection
         io.to(roomId).emit('forbidden-detected', {
           playerId: socket.id,
@@ -332,28 +386,28 @@ io.on('connection', (socket) => {
           violations,
           penalty: -5,
         });
-        
+
         // Broadcast score update
         io.to(roomId).emit('score-updated', {
           playerId: socket.id,
           newScore: speaker.score,
           room,
         });
-        
+
         console.log(`Forbidden words detected in room ${roomId}: ${violations.join(', ')}`);
       }
     } else {
       // Valid clue - increment clue count
       const currentClueCount = (roomClueCount.get(roomId) || 0) + 1;
       roomClueCount.set(roomId, currentClueCount);
-      
+
       // Broadcast the valid clue to all players
       io.to(roomId).emit('clue-broadcast', {
         transcript,
         clueCount: currentClueCount,
         speakerId: socket.id,
       });
-      
+
       console.log(`Valid clue in room ${roomId}: "${transcript}" (clue #${currentClueCount})`);
     }
   });
@@ -362,51 +416,51 @@ io.on('connection', (socket) => {
   socket.on('guesser-guess', (data: { roomId: string; guess: string }) => {
     const { roomId, guess } = data;
     const room = getRoom(roomId);
-    
+
     if (!room) {
       socket.emit('error', { message: 'Room not found' });
       return;
     }
-    
+
     // Check if there's a current card
     if (!room.currentCard) {
       socket.emit('error', { message: 'No card is currently active' });
       return;
     }
-    
+
     // Verify that the sender is not the current clue giver
     if (room.currentClueGiver === socket.id) {
       socket.emit('error', { message: 'The speaker cannot make guesses' });
       return;
     }
-    
+
     // Find the guesser
     const guesser = room.players.find((p) => p.id === socket.id);
     if (!guesser) {
       socket.emit('error', { message: 'Player not found in room' });
       return;
     }
-    
+
     // Update guesses used
     guesser.guessesUsed = (guesser.guessesUsed || 0) + 1;
-    
+
     // Normalize both the guess and the target word
     const normalizedGuess = normalize(guess);
     const normalizedTarget = normalize(room.currentCard.mainWord);
-    
+
     // Check if guess is correct
     if (normalizedGuess === normalizedTarget) {
       // Correct guess!
       const clueCount = roomClueCount.get(roomId) || 0;
       const points = computePoints(clueCount);
       const targetWord = room.currentCard.mainWord;
-      
+
       // Award points using endRound helper
       let bonuses = { speakerBonus: 0, guesserBonus: 0 };
       if (room.currentClueGiver) {
         bonuses = endRound(room, room.currentClueGiver, socket.id);
       }
-      
+
       // Broadcast correct guess result
       io.to(roomId).emit('guess-result', {
         correct: true,
@@ -418,7 +472,7 @@ io.on('connection', (socket) => {
         points,
         room,
       });
-      
+
       // Emit round-ended event
       io.to(roomId).emit('round-ended', {
         success: true,
@@ -430,20 +484,20 @@ io.on('connection', (socket) => {
         bonuses,
         room,
       });
-      
+
       // Emit final score-updated event
       io.to(roomId).emit('score-updated', {
         room,
         teamAScore: room.teamAScore,
         teamBScore: room.teamBScore,
       });
-      
+
       console.log(`Correct guess in room ${roomId}: "${guess}" by ${guesser.name}`);
     } else {
       // Incorrect guess
       const maxGuesses = 3; // Maximum guesses per player per round
       const isExhausted = (guesser.guessesUsed || 0) >= maxGuesses;
-      
+
       // Broadcast incorrect guess result
       io.to(roomId).emit('guess-result', {
         correct: false,
@@ -454,7 +508,7 @@ io.on('connection', (socket) => {
         isExhausted,
         room,
       });
-      
+
       console.log(`Incorrect guess in room ${roomId}: "${guess}" by ${guesser.name} (${guesser.guessesUsed}/${maxGuesses})`);
     }
   });
@@ -462,12 +516,12 @@ io.on('connection', (socket) => {
   // Handle disconnect
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`);
-    
+
     const room = getRoomBySocketId(socket.id);
     if (room) {
       const roomId = room.id;
       const removed = removePlayerFromRoom(room, socket.id);
-      
+
       if (removed) {
         // Delete room if empty
         if (room.players.length === 0) {
