@@ -53,10 +53,27 @@ export default function GamePage() {
   // Speech Recognition Hook
   const { isListening, isSupported, transcript, start, stop } = useSpeechRecognition({
     onResult: (transcript: string) => {
-      if (isSpeaker && roundActive && transcript.trim()) {
-        console.log('Sending clue:', transcript);
-        socket.emit('speaker-transcript', { roomId, transcript });
+      const text = transcript.trim();
+      if (!text) return;
+      if (isSpeaker && roundActive) {
+        console.log('Sending clue:', text);
+        socket.emit('speaker-transcript', { roomId, transcript: text });
         showFeedback('Clue sent!', 'success');
+        stop();
+      } else if (!isSpeaker) {
+        // Guesser voice guess
+        if (guessesUsed >= maxGuesses) {
+          showFeedback('No guesses left!', 'error');
+          stop();
+          return;
+        }
+        console.log('Voice guess:', text);
+        socket.emit('guesser-guess', { roomId, guess: text });
+        // Auto-stop after one utterance, and if limit now reached, prevent further starts
+        stop();
+        if (guessesUsed + 1 >= maxGuesses) {
+          showFeedback('You used all 3 voice guesses.', 'info');
+        }
       }
     },
     onError: (error: string) => {
@@ -162,6 +179,9 @@ export default function GamePage() {
       setGuessInput('');
       setRoundActive(false);
       stopRef.current(); // Stop microphone if it's active
+      
+      // Request fresh room state to get the new speaker
+      socket.emit('get-room', roomId);
       
       // Update round number
       setTimeout(() => {
@@ -282,7 +302,7 @@ export default function GamePage() {
 
   const currentPlayer = room?.players.find((p) => p.id === currentPlayerId);
   const speaker = room?.players.find((p) => p.id === room.currentClueGiver);
-  const guessesUsed = currentPlayer?.guessesUsed || 0;
+  const guessesUsed = (currentPlayer as Player & { guessesUsed?: number })?.guessesUsed || 0;
   const maxGuesses = 3;
 
   if (!room) {
@@ -641,26 +661,69 @@ export default function GamePage() {
                     </div>
                   </div>
 
-                  {/* Guess Form */}
-                  <form onSubmit={handleGuessSubmit} className="space-y-4">
-                    <input
-                      type="text"
-                      value={guessInput}
-                      onChange={(e) => setGuessInput(e.target.value)}
-                      placeholder="Type your guess..."
-                      aria-label="Guess input"
-                      className="w-full px-5 sm:px-6 py-4 sm:py-5 text-base sm:text-lg md:text-xl border-4 border-gray-300 rounded-xl focus:ring-4 focus:ring-purple-500 focus:border-purple-500 outline-none transition text-gray-900 font-medium placeholder-gray-500 shadow-inner min-h-[56px]"
-                      disabled={guessesUsed >= maxGuesses}
-                      maxLength={50}
-                    />
-                    <button
-                      type="submit"
-                      disabled={!guessInput.trim() || guessesUsed >= maxGuesses}
-                      className="w-full py-4 sm:py-5 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-lg sm:text-xl font-black rounded-xl hover:from-purple-700 hover:to-pink-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95 shadow-2xl min-h-[56px] uppercase tracking-wide"
-                    >
-                      {guessesUsed >= maxGuesses ? '🚫 No Guesses Left' : '🎯 Submit Guess'}
-                    </button>
-                  </form>
+                  {/* Guess Form + Mic */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <form onSubmit={handleGuessSubmit} className="space-y-4 order-2 md:order-1">
+                      <input
+                        type="text"
+                        value={guessInput}
+                        onChange={(e) => setGuessInput(e.target.value)}
+                        placeholder="Type your guess..."
+                        aria-label="Guess input"
+                        className="w-full px-5 sm:px-6 py-4 sm:py-5 text-base sm:text-lg md:text-xl border-4 border-gray-300 rounded-xl focus:ring-4 focus:ring-purple-500 focus:border-purple-500 outline-none transition text-gray-900 font-medium placeholder-gray-500 shadow-inner min-h-[56px]"
+                        disabled={guessesUsed >= maxGuesses}
+                        maxLength={50}
+                      />
+                      <button
+                        type="submit"
+                        disabled={!guessInput.trim() || guessesUsed >= maxGuesses}
+                        className="w-full py-4 sm:py-5 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-lg sm:text-xl font-black rounded-xl hover:from-purple-700 hover:to-pink-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95 shadow-2xl min-h-[56px] uppercase tracking-wide"
+                      >
+                        {guessesUsed >= maxGuesses ? '🚫 No Guesses Left' : '🎯 Submit Guess'}
+                      </button>
+                    </form>
+
+                    {/* Guesser Mic */}
+                    <div className="space-y-3 order-1 md:order-2">
+                      <p className="text-center text-gray-800 font-bold">Or speak your guess 🎤</p>
+                      {!isSupported ? (
+                        <div className="text-center py-3 text-red-700 font-bold">Speech not supported</div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-3">
+                          <button
+                            onClick={() => {
+                              if (guessesUsed >= maxGuesses) {
+                                showFeedback('No guesses left!', 'error');
+                                return;
+                              }
+                              if (isListening) {
+                                stop();
+                              } else {
+                                start();
+                              }
+                            }}
+                            disabled={guessesUsed >= maxGuesses}
+                            aria-label={isListening ? 'Stop recording' : 'Start recording'}
+                            className={`w-24 h-24 rounded-full flex items-center justify-center text-4xl transition-all transform shadow-2xl ${
+                              guessesUsed >= maxGuesses
+                                ? 'bg-gray-400 cursor-not-allowed'
+                                : isListening
+                                ? 'bg-red-600 hover:bg-red-700 animate-pulse ring-4 ring-red-300'
+                                : 'bg-purple-600 hover:bg-purple-700 ring-4 ring-purple-300'
+                            }`}
+                          >
+                            {guessesUsed >= maxGuesses ? '🚫' : isListening ? '🔴' : '🎤'}
+                          </button>
+                          {transcript && (
+                            <div className="text-center text-sm text-gray-700">
+                              Heard: <span className="font-bold">{transcript}</span>
+                            </div>
+                          )}
+                          <div className="text-xs text-gray-500 text-center">Speak a single word or short phrase</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </>
             )}

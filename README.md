@@ -204,10 +204,26 @@ See [HTTPS_QUICK_START.md](HTTPS_QUICK_START.md) for complete setup guide.
    - Save guesses - you only get 3!
    - Consider the category/context
 
+## 🚀 Deployment
+
+Ready to deploy your game to production? Follow our comprehensive guide:
+
+**[📖 Read the Deployment Guide](DEPLOYMENT.md)**
+
+Quick summary:
+- **Frontend**: Deploy to Vercel (automatic from GitHub)
+- **Backend**: Deploy to Railway or Render
+- **Database**: Already on Supabase ✅
+
+Your game will be live at:
+- Frontend: `https://your-app.vercel.app`
+- Backend: `https://your-backend.railway.app`
+
 ## 🎉 Have Fun!
 
-The game is now fully playable! Gather 3 friends and start playing at:
+The game is now fully playable! 
 
-**http://localhost:3000**
+**Local Development**: http://localhost:3000  
+**Production**: https://your-app.vercel.app
 
-Enjoy the game! 🎮✨
+Gather 3 friends and start playing! 🎮✨

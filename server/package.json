@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "ts-node server.ts",
     "dev:https": "ts-node server.ts",
-    "start": "node server.js",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "start:dev": "ts-node server.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"

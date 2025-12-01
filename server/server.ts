@@ -44,8 +44,9 @@ if (useHttps && fs.existsSync(pfxPath)) {
 
 const io = new Server(httpServer, {
   cors: {
-    origin: '*',
+    origin: process.env.CORS_ORIGIN || '*',
     methods: ['GET', 'POST'],
+    credentials: true,
   },
 });
 
@@ -439,7 +440,7 @@ io.on('connection', (socket) => {
   });
 
   // Handle guesser-guess event
-  socket.on('guesser-guess', (data: { roomId: string; guess: string }) => {
+  socket.on('guesser-guess', async (data: { roomId: string; guess: string }) => {
     const { roomId, guess } = data;
     const room = getRoom(roomId);
 
@@ -467,8 +468,16 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // Enforce guess limit before processing
+    const maxGuesses = 3; // Maximum guesses per player per round
+    const currentGuesses = guesser.guessesUsed || 0;
+    if (currentGuesses >= maxGuesses) {
+      socket.emit('error', { message: 'Maximum guesses reached (3 per round)' });
+      return;
+    }
+
     // Update guesses used
-    guesser.guessesUsed = (guesser.guessesUsed || 0) + 1;
+    guesser.guessesUsed = currentGuesses + 1;
 
     // Normalize both the guess and the target word
     const normalizedGuess = normalize(guess);
@@ -480,12 +489,21 @@ io.on('connection', (socket) => {
       const clueCount = roomClueCount.get(roomId) || 0;
       const points = computePoints(clueCount);
       const targetWord = room.currentCard.mainWord;
+      const oldSpeakerId = room.currentClueGiver;
 
-      // Award points using endRound helper
+      // Award points using endRound helper (this updates room.currentClueGiver to the next speaker)
       let bonuses = { speakerBonus: 0, guesserBonus: 0 };
       if (room.currentClueGiver) {
         bonuses = endRound(room, room.currentClueGiver, socket.id);
       }
+
+      // Now room.currentClueGiver is the NEW speaker
+      const newSpeakerId = room.currentClueGiver;
+
+      // Draw next card for the new speaker
+      const nextCard = await drawNextCard(room);
+      room.currentCard = nextCard;
+      console.log(`[socket] Drew next card for new speaker ${newSpeakerId}: ${nextCard?.id || 'null'}`);
 
       // Broadcast correct guess result
       io.to(roomId).emit('guess-result', {
@@ -503,7 +521,7 @@ io.on('connection', (socket) => {
       io.to(roomId).emit('round-ended', {
         success: true,
         targetWord,
-        speakerId: room.currentClueGiver,
+        speakerId: oldSpeakerId,
         guesserId: socket.id,
         clueCount,
         basePoints: points,
@@ -518,10 +536,19 @@ io.on('connection', (socket) => {
         teamBScore: room.teamBScore,
       });
 
+      // Emit card-assigned to the new speaker after round ends
+      if (newSpeakerId && room.currentCard) {
+        console.log(`[socket] Emitting card-assigned to new speaker ${newSpeakerId} with card ${room.currentCard.id}`);
+        io.to(newSpeakerId).emit('card-assigned', {
+          card: room.currentCard,
+        });
+      } else {
+        console.warn(`[socket] Could not emit card-assigned: speakerId=${newSpeakerId}, card=${room.currentCard?.id}`);
+      }
+
       console.log(`Correct guess in room ${roomId}: "${guess}" by ${guesser.name}`);
     } else {
       // Incorrect guess
-      const maxGuesses = 3; // Maximum guesses per player per round
       const isExhausted = (guesser.guessesUsed || 0) >= maxGuesses;
 
       // Broadcast incorrect guess result
@@ -565,4 +592,15 @@ io.on('connection', (socket) => {
 
 httpServer.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+});
+
+// Graceful error handling
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
 });
