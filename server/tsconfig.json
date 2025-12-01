@@ -12,6 +12,9 @@
     "resolveJsonModule": true,
     "moduleResolution": "node"
   },
+  "ts-node": {
+    "require": ["dotenv/config"]
+  },
   "include": ["**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

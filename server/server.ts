@@ -1,3 +1,6 @@
+// Load environment variables FIRST before any other imports
+import 'dotenv/config';
+
 import express from 'express';
 import { createServer } from 'http';
 import { createSecureServer } from 'http2';
@@ -6,7 +9,7 @@ import * as path from 'path';
 import { Server } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
 import { Room, Player, Card } from './types/game';
-import { loadAndShuffleDeck } from './data/deck';
+import { loadAndShuffleDeck } from './lib/supabase';
 import { checkForbidden, normalize } from './utils/forbiddenCheck';
 import { computePoints } from './utils/scoring';
 
@@ -126,7 +129,7 @@ function removePlayerFromRoom(room: Room, playerId: string): boolean {
 }
 
 // Helper function to start game
-function startGame(room: Room): boolean {
+async function startGame(room: Room): Promise<boolean> {
   // Validate room size (must have 4 players)
   if (room.players.length !== 4) {
     return false;
@@ -141,27 +144,46 @@ function startGame(room: Room): boolean {
   // Assign first speaker (first player in the list)
   room.currentClueGiver = room.players[0].id;
 
-  // Load and shuffle deck for this room
-  const deck = loadAndShuffleDeck();
-  roomDecks.set(room.id, deck);
+  try {
+    // Load and shuffle deck for this room (now async from Supabase)
+    const deck = await loadAndShuffleDeck();
+    if (!deck || deck.length === 0) {
+      console.warn(`[startGame] Supabase returned no cards. Using fallback deck for room ${room.id}.`);
+      const fallback: Card[] = [
+        { id: 'fallback-1', mainWord: 'Sample', forbiddenWords: ['example', 'test', 'demo', 'mock'] },
+        { id: 'fallback-2', mainWord: 'Alpha', forbiddenWords: ['beta', 'gamma', 'delta', 'epsilon'] }
+      ];
+      roomDecks.set(room.id, fallback);
+    } else {
+      roomDecks.set(room.id, deck);
+    }
 
-  // Draw first card
-  const firstCard = drawNextCard(room);
-  room.currentCard = firstCard;
+    // Draw first card
+    console.log(`[startGame] Drawing first card for room ${room.id}`);
+    const firstCard = await drawNextCard(room);
+    room.currentCard = firstCard;
+    console.log(`[startGame] First card set: ${firstCard ? firstCard.id : 'null'}`);
 
-  return true;
+    return true;
+  } catch (error) {
+    console.error(`Error loading deck for room ${room.id}:`, error);
+    return false;
+  }
 }
 
 // Helper function to draw next card
-function drawNextCard(room: Room): Card | null {
+async function drawNextCard(room: Room): Promise<Card | null> {
   const deck = roomDecks.get(room.id);
   if (!deck || deck.length === 0) {
     // Ensure the deck is initialized if missing
-    if (!deck || deck.length === 0) {
-      console.warn(`Deck for room ${room.id} is empty or missing. Reinitializing...`);
-      const newDeck = loadAndShuffleDeck();
+    console.warn(`Deck for room ${room.id} is empty or missing. Reinitializing...`);
+    try {
+      const newDeck = await loadAndShuffleDeck();
       roomDecks.set(room.id, newDeck);
       return newDeck.shift() || null;
+    } catch (error) {
+      console.error(`Error reloading deck for room ${room.id}:`, error);
+      return null;
     }
   }
 
@@ -299,7 +321,7 @@ io.on('connection', (socket) => {
   });
 
   // Handle start-game event
-  socket.on('start-game', (roomId: string) => {
+  socket.on('start-game', async (roomId: string) => {
     const room = getRoom(roomId);
 
     if (!room) {
@@ -314,14 +336,17 @@ io.on('connection', (socket) => {
     }
 
     // Start the game
-    const started = startGame(room);
+    console.log(`[socket] start-game requested for room ${roomId}`);
+    const started = await startGame(room);
 
     if (!started) {
       socket.emit('error', { message: 'Failed to start game' });
+      console.error(`[socket] start-game failed for room ${roomId}`);
       return;
     }
 
     // Emit game-started to all players in the room
+    console.log(`[socket] Emitting game-started for room ${roomId}`);
     io.to(roomId).emit('game-started', {
       room,
       roundNumber: roomRounds.get(roomId),
@@ -330,6 +355,7 @@ io.on('connection', (socket) => {
 
     // Emit card-assigned only to the current speaker
     if (room.currentClueGiver && room.currentCard) {
+      console.log(`[socket] Emitting card-assigned to speaker ${room.currentClueGiver}`);
       io.to(room.currentClueGiver).emit('card-assigned', {
         card: room.currentCard,
       });

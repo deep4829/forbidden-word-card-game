@@ -2,7 +2,21 @@
 
 A real-time multiplayer word guessing game where players give clues without using forbidden words!
 
-## 🔒 Running with HTTPS (Recommended for Microphone)
+## 🔧 Initial Setup (Required)
+
+### ⚠️ Important: Configure Supabase First
+
+This game uses **Supabase** to manage game cards securely. Before running:
+
+1. **[Follow the Supabase Setup Guide](SUPABASE_SETUP.md)** (takes 5 minutes)
+2. Create `.env.local` in the `server/` directory with your credentials
+3. Add at least 10 cards to your Supabase table
+
+This prevents exposing cards.json during deployment.
+
+---
+
+##  Running with HTTPS (Recommended for Microphone)
 
 For full microphone support and encrypted connections, use HTTPS:
 
