@@ -563,6 +563,48 @@ io.on('connection', (socket) => {
       });
 
       console.log(`Incorrect guess in room ${roomId}: "${guess}" by ${guesser.name} (${guesser.guessesUsed}/${maxGuesses})`);
+
+      // Check if all guessers have exhausted their guesses
+      const allGuessersExhausted = room.players
+        .filter((p) => p.id !== room.currentClueGiver) // Exclude the speaker
+        .every((p) => (p.guessesUsed || 0) >= maxGuesses);
+
+      if (allGuessersExhausted) {
+        console.log(`[socket] All guessers exhausted in room ${roomId}. Auto-advancing round...`);
+
+        // End round with no correct guess
+        const oldSpeakerId = room.currentClueGiver;
+        endRound(room, room.currentClueGiver!, socket.id); // Use incorrect guesser for scoring
+        const newSpeakerId = room.currentClueGiver;
+
+        // Draw next card for the new speaker
+        const nextCard = await drawNextCard(room);
+        room.currentCard = nextCard;
+
+        // Broadcast round ended
+        io.to(roomId).emit('round-ended', {
+          success: false,
+          reason: 'All guesses exhausted',
+          targetWord: room.currentCard?.mainWord, // Previous card
+          speakerId: oldSpeakerId,
+          room,
+        });
+
+        // Emit score update
+        io.to(roomId).emit('score-updated', {
+          room,
+          teamAScore: room.teamAScore,
+          teamBScore: room.teamBScore,
+        });
+
+        // Emit card to new speaker
+        if (newSpeakerId && room.currentCard) {
+          console.log(`[socket] Auto-advance: Emitting card to new speaker ${newSpeakerId}`);
+          io.to(newSpeakerId).emit('card-assigned', {
+            card: room.currentCard,
+          });
+        }
+      }
     }
   });
 

@@ -173,7 +173,14 @@ export default function GamePage() {
 
     // Round ended event
     const onRoundEnded = (data: any) => {
-      showFeedback('Round ended! Preparing next round...', 'success');
+      if (data.reason === 'All guesses exhausted') {
+        showFeedback('All guesses used! Moving to next round...', 'info');
+      } else if (data.success) {
+        showFeedback('Correct guess! Round ended!', 'success');
+      } else {
+        showFeedback('Round ended! Preparing next round...', 'success');
+      }
+      
       setClueHistory([]);
       setCurrentCard(null);
       setGuessInput('');
