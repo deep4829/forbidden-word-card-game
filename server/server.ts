@@ -64,6 +64,12 @@ const roomRounds = new Map<string, number>();
 // Store clue count for current round in each room
 const roomClueCount = new Map<string, number>();
 
+// Store all clues given in current round per room (for duplicate prevention)
+const roomCluesGiven = new Map<string, Set<string>>();
+
+// Store all guesses made in current round per room (for duplicate prevention)
+const roomGuessesGiven = new Map<string, Set<string>>();
+
 // Helper function to create a new player
 function createPlayer(socketId: string, name: string): Player {
   return {
@@ -247,6 +253,10 @@ function endRound(room: Room, speakerId: string, guesserId: string): { speakerBo
   room.roundInProgress = false;
   room.currentCard = null;
   roomClueCount.set(room.id, 0);
+  
+  // Clear clues and guesses for next round
+  roomCluesGiven.delete(room.id);
+  roomGuessesGiven.delete(room.id);
 
   // Reset guesses used for all players
   room.players.forEach((p) => {
@@ -394,6 +404,19 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // Check for duplicate clues
+    const normalizedClue = transcript.toLowerCase().trim();
+    let cluesSet = roomCluesGiven.get(roomId);
+    if (!cluesSet) {
+      cluesSet = new Set();
+      roomCluesGiven.set(roomId, cluesSet);
+    }
+    if (cluesSet.has(normalizedClue)) {
+      socket.emit('error', { message: 'You already gave that clue!' });
+      return;
+    }
+    cluesSet.add(normalizedClue);
+
     // Check for forbidden words
     const violations = checkForbidden(transcript, [
       room.currentCard.mainWord,
@@ -475,6 +498,19 @@ io.on('connection', (socket) => {
       socket.emit('error', { message: 'Maximum guesses reached (3 per round)' });
       return;
     }
+
+    // Check for duplicate guesses
+    const normalizedGuessForDuplicate = guess.toLowerCase().trim();
+    let guessesSet = roomGuessesGiven.get(roomId);
+    if (!guessesSet) {
+      guessesSet = new Set();
+      roomGuessesGiven.set(roomId, guessesSet);
+    }
+    if (guessesSet.has(normalizedGuessForDuplicate)) {
+      socket.emit('error', { message: 'That guess was already made!' });
+      return;
+    }
+    guessesSet.add(normalizedGuessForDuplicate);
 
     // Update guesses used
     guesser.guessesUsed = currentGuesses + 1;
