@@ -22,6 +22,7 @@ interface GuessResult {
   points?: { speaker: number; guesser: number };
   guessesUsed?: number;
   isExhausted?: boolean;
+  room?: Room;
 }
 
 interface ForbiddenDetected {
@@ -158,6 +159,11 @@ export default function GamePage() {
 
     // Guess result event
     const onGuessResult = (data: GuessResult) => {
+      // Update room state with latest player data (includes guessesUsed)
+      if (data.room) {
+        setRoom(data.room);
+      }
+      
       if (data.correct) {
         showFeedback(
           `Correct! ${data.guesserName} guessed "${data.targetWord}" in ${data.clueCount} clues!`,
@@ -334,9 +340,14 @@ export default function GamePage() {
               <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 sm:px-8 sm:py-4 rounded-xl font-bold text-lg sm:text-xl shadow-lg min-h-[48px] flex items-center justify-center">
                 Round {roundNumber}
               </div>
-              <div className="text-gray-800 text-center sm:text-left">
-                <span className="font-semibold text-base sm:text-lg">Speaker:</span>{' '}
-                <span className="text-purple-700 font-bold text-base sm:text-lg">{speaker?.name || 'Unknown'}</span>
+              <div className="text-gray-800 text-center sm:text-left flex items-center gap-3">
+                <span className="font-semibold text-base sm:text-lg">Speaker:</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-yellow-500 flex items-center justify-center text-xl sm:text-2xl font-bold shadow-md">
+                    {speaker?.avatar || speaker?.name.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="text-purple-700 font-bold text-base sm:text-lg">{speaker?.name || 'Unknown'}</span>
+                </div>
               </div>
             </div>
 
@@ -353,19 +364,28 @@ export default function GamePage() {
             </div>
 
             {/* Players Quick View */}
-            <div className="flex flex-wrap gap-2 justify-center sm:justify-start w-full sm:w-auto">
+            <div className="flex flex-wrap gap-3 justify-center sm:justify-start w-full sm:w-auto">
               {room.players.map((player) => (
                 <div
                   key={player.id}
-                  className={`px-4 py-3 rounded-lg text-sm font-bold min-h-[48px] min-w-[48px] flex items-center justify-center shadow-md transition-transform hover:scale-105 ${
+                  className={`px-3 sm:px-4 py-2 sm:py-3 rounded-lg text-sm font-bold min-h-[50px] flex items-center gap-2 shadow-md transition-transform hover:scale-105 ${
                     player.id === currentPlayerId
                       ? 'bg-purple-600 text-white ring-2 ring-purple-300'
                       : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
                   }`}
                   title={`${player.name}: ${player.score} pts`}
                 >
-                  {player.name.charAt(0).toUpperCase()}
-                  <span className="ml-1 text-xs font-extrabold">{player.score}</span>
+                  <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-lg sm:text-xl font-bold shadow-md ${
+                    player.id === currentPlayerId
+                      ? 'bg-purple-700'
+                      : 'bg-gray-300'
+                  }`}>
+                    {player.avatar || player.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs leading-tight">{player.name}</span>
+                    <span className="text-xs font-extrabold">{player.score} pts</span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -744,7 +764,7 @@ export default function GamePage() {
                 {room.players.map((player) => (
                   <div
                     key={player.id}
-                    className={`p-4 sm:p-5 rounded-xl border-3 shadow-md transition-all hover:shadow-lg min-h-[72px] ${
+                    className={`p-4 sm:p-5 rounded-xl border-3 shadow-md transition-all hover:shadow-lg min-h-[88px] ${
                       player.id === room.currentClueGiver
                         ? 'bg-yellow-100 border-yellow-500 ring-2 ring-yellow-300'
                         : player.id === currentPlayerId
@@ -752,8 +772,17 @@ export default function GamePage() {
                         : 'bg-gray-100 border-gray-300'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div>
+                    <div className="flex items-center gap-4">
+                      <div className={`w-16 h-16 rounded-full flex items-center justify-center text-4xl font-bold shadow-md flex-shrink-0 ${
+                        player.id === room.currentClueGiver
+                          ? 'bg-yellow-400'
+                          : player.id === currentPlayerId
+                          ? 'bg-purple-500 text-white'
+                          : 'bg-gray-400'
+                      }`}>
+                        {player.avatar || player.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1">
                         <p className="font-bold text-gray-900 flex flex-wrap items-center gap-2 text-base sm:text-lg">
                           {player.name}
                           {player.id === currentPlayerId && (
