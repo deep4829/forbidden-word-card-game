@@ -71,10 +71,11 @@ const roomCluesGiven = new Map<string, Set<string>>();
 const roomGuessesGiven = new Map<string, Set<string>>();
 
 // Helper function to create a new player
-function createPlayer(socketId: string, name: string): Player {
+function createPlayer(socketId: string, name: string, avatar: string = '🎮'): Player {
   return {
     id: socketId,
     name,
+    avatar,
     isReady: false,
     team: null,
     score: 0,
@@ -279,10 +280,21 @@ io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
 
   // Handle create-room event
-  socket.on('create-room', (playerName: string) => {
-    console.log(`[create-room] Received request from ${socket.id} with name: ${playerName}`);
+  socket.on('create-room', (data: { playerName: string; playerAvatar: string } | string) => {
+    // Handle both old format (just string) and new format (object with avatar)
+    let playerName = '';
+    let playerAvatar = '🎮';
+    
+    if (typeof data === 'string') {
+      playerName = data;
+    } else {
+      playerName = data.playerName;
+      playerAvatar = data.playerAvatar || '🎮';
+    }
+    
+    console.log(`[create-room] Received request from ${socket.id} with name: ${playerName}, avatar: ${playerAvatar}`);
     const roomId = uuidv4();
-    const player = createPlayer(socket.id, playerName);
+    const player = createPlayer(socket.id, playerName, playerAvatar);
     const room = createRoom(roomId, player);
 
     rooms.set(roomId, room);
@@ -306,8 +318,8 @@ io.on('connection', (socket) => {
   });
 
   // Handle join-room event
-  socket.on('join-room', (data: { roomId: string; playerName: string }) => {
-    const { roomId, playerName } = data;
+  socket.on('join-room', (data: { roomId: string; playerName: string; playerAvatar?: string }) => {
+    const { roomId, playerName, playerAvatar = '🎮' } = data;
     const room = getRoom(roomId);
 
     if (!room) {
@@ -316,7 +328,7 @@ io.on('connection', (socket) => {
     }
 
     // Add player to room using helper function
-    const player = createPlayer(socket.id, playerName);
+    const player = createPlayer(socket.id, playerName, playerAvatar);
     const added = addPlayerToRoom(room, player);
 
     if (!added) {
@@ -329,6 +341,38 @@ io.on('connection', (socket) => {
     io.to(roomId).emit('room-updated', room);
 
     console.log(`Player ${playerName} joined room: ${roomId}`);
+  });
+
+  // Handle update-player event (for editing profile)
+  socket.on('update-player', (data: { roomId: string; playerName: string; playerAvatar: string }) => {
+    const { roomId, playerName, playerAvatar } = data;
+    const room = getRoom(roomId);
+
+    if (!room) {
+      socket.emit('error', { message: 'Room not found' });
+      return;
+    }
+
+    // Find the player in the room
+    const player = room.players.find((p) => p.id === socket.id);
+
+    if (!player) {
+      socket.emit('error', { message: 'You are not in this room' });
+      return;
+    }
+
+    // Update player's name and avatar
+    if (playerName.trim()) {
+      player.name = playerName.trim();
+    }
+    if (playerAvatar) {
+      player.avatar = playerAvatar;
+    }
+
+    // Broadcast updated room to all players in the room
+    io.to(roomId).emit('room-updated', room);
+
+    console.log(`Player ${socket.id} updated profile in room: ${roomId}`);
   });
 
   // Handle start-game event

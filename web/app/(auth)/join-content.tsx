@@ -3,16 +3,23 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import socket from '@/lib/socket';
+import { AVATARS, getRandomAvatar } from '@/lib/avatars';
 
 export default function JoinContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [playerName, setPlayerName] = useState('');
+  const [playerAvatar, setPlayerAvatar] = useState('');
   const [roomId, setRoomId] = useState('');
   const [mode, setMode] = useState<'menu' | 'create' | 'join'>('menu');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isConnected, setIsConnected] = useState(false);
+
+  // Initialize with random avatar on mount
+  useEffect(() => {
+    setPlayerAvatar(getRandomAvatar());
+  }, []);
 
   // Check for roomId in query params (from invite link)
   useEffect(() => {
@@ -94,7 +101,7 @@ export default function JoinContent() {
 
     setIsLoading(true);
     setError('');
-    socket.emit('create-room', playerName.trim());
+    socket.emit('create-room', { playerName: playerName.trim(), playerAvatar });
   };
 
   const handleJoinRoom = (e: React.FormEvent) => {
@@ -117,7 +124,7 @@ export default function JoinContent() {
 
     setIsLoading(true);
     setError('');
-    socket.emit('join-room', { roomId: roomId.trim(), playerName: playerName.trim() });
+    socket.emit('join-room', { roomId: roomId.trim(), playerName: playerName.trim(), playerAvatar });
   };
 
   return (
@@ -192,6 +199,33 @@ export default function JoinContent() {
                     disabled={isLoading}
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Choose Avatar
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <div className="text-4xl">{playerAvatar}</div>
+                    <button
+                      type="button"
+                      onClick={() => setPlayerAvatar(getRandomAvatar())}
+                      className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors font-medium"
+                    >
+                      🔄 Random
+                    </button>
+                  </div>
+                  <div className="mt-3 grid grid-cols-5 gap-2">
+                    {AVATARS.map((avatar, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setPlayerAvatar(avatar)}
+                        className={`text-2xl p-2 rounded-lg transition-all ${ playerAvatar === avatar ? 'bg-indigo-500 scale-125' : 'bg-gray-200 hover:bg-gray-300'}`}
+                      >
+                        {avatar}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 {error && (
                   <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm font-medium">
                     {error}
@@ -234,6 +268,33 @@ export default function JoinContent() {
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none text-gray-900 placeholder-gray-500"
                     disabled={isLoading}
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Choose Avatar
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <div className="text-4xl">{playerAvatar}</div>
+                    <button
+                      type="button"
+                      onClick={() => setPlayerAvatar(getRandomAvatar())}
+                      className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors font-medium"
+                    >
+                      🔄 Random
+                    </button>
+                  </div>
+                  <div className="mt-3 grid grid-cols-5 gap-2">
+                    {AVATARS.map((avatar, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setPlayerAvatar(avatar)}
+                        className={`text-2xl p-2 rounded-lg transition-all ${playerAvatar === avatar ? 'bg-indigo-500 scale-125' : 'bg-gray-200 hover:bg-gray-300'}`}
+                      >
+                        {avatar}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">

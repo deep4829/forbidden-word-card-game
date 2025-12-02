@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import socket from '@/lib/socket';
+import EditProfileModal from '@/components/EditProfileModal';
 import type { Room, Player } from '@/types/game';
 
 export default function RoomPage() {
@@ -16,6 +17,8 @@ export default function RoomPage() {
   const [error, setError] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
   const [shareMethod, setShareMethod] = useState<'copy' | 'link' | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
 
   // Get the invite URL based on deployment environment
   const getInviteUrl = () => {
@@ -120,6 +123,23 @@ export default function RoomPage() {
     } catch (err) {
       console.error('Failed to copy room ID:', err);
     }
+  };
+
+  const openEditModal = () => {
+    const player = room?.players.find((p) => p.id === currentPlayerId);
+    if (player) {
+      setCurrentPlayer(player);
+      setIsEditModalOpen(true);
+    }
+  };
+
+  const handleProfileSave = (newName: string, newAvatar: string) => {
+    socket.emit('update-player', {
+      roomId,
+      playerName: newName,
+      playerAvatar: newAvatar,
+    });
+    setIsEditModalOpen(false);
   };
 
   const copyInviteLink = async () => {
@@ -280,29 +300,39 @@ export default function RoomPage() {
                     : 'bg-gray-50 border-gray-200'
                   }`}
               >
-                <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold text-white ${index === 0 ? 'bg-yellow-500' : 'bg-indigo-500'
-                    }`}>
-                    {player.name.charAt(0).toUpperCase()}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl font-bold ${index === 0 ? 'bg-yellow-500' : 'bg-indigo-500'
+                      }`}>
+                      {player.avatar || player.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-800 flex items-center gap-2">
+                        {player.name}
+                        {player.id === currentPlayerId && (
+                          <span className="text-xs bg-indigo-600 text-white px-2 py-1 rounded-full">
+                            You
+                          </span>
+                        )}
+                        {index === 0 && (
+                          <span className="text-xs bg-yellow-500 text-white px-2 py-1 rounded-full">
+                            Host
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {player.isReady ? '✓ Ready' : 'Waiting...'}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-800 flex items-center gap-2">
-                      {player.name}
-                      {player.id === currentPlayerId && (
-                        <span className="text-xs bg-indigo-600 text-white px-2 py-1 rounded-full">
-                          You
-                        </span>
-                      )}
-                      {index === 0 && (
-                        <span className="text-xs bg-yellow-500 text-white px-2 py-1 rounded-full">
-                          Host
-                        </span>
-                      )}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {player.isReady ? '✓ Ready' : 'Waiting...'}
-                    </p>
-                  </div>
+                  {player.id === currentPlayerId && (
+                    <button
+                      onClick={openEditModal}
+                      className="px-3 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors whitespace-nowrap font-medium"
+                    >
+                      ✏️ Edit
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -379,6 +409,16 @@ export default function RoomPage() {
               Waiting for the host to start the game...
             </p>
           </div>
+        )}
+
+        {/* Edit Profile Modal */}
+        {currentPlayer && (
+          <EditProfileModal
+            player={currentPlayer}
+            isOpen={isEditModalOpen}
+            onClose={() => setIsEditModalOpen(false)}
+            onSave={handleProfileSave}
+          />
         )}
       </div>
     </div>
