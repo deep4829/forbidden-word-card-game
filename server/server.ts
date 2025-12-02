@@ -137,8 +137,8 @@ function removePlayerFromRoom(room: Room, playerId: string): boolean {
 
 // Helper function to start game
 async function startGame(room: Room): Promise<boolean> {
-  // Validate room size (must have 4 players)
-  if (room.players.length !== 4) {
+  // Validate room size (must have at least 2 players)
+  if (room.players.length < 2) {
     return false;
   }
 
@@ -340,9 +340,9 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Validate room size (must have exactly 4 players)
-    if (room.players.length !== 4) {
-      socket.emit('error', { message: 'Game requires exactly 4 players to start' });
+    // Validate room size (must have at least 2 players)
+    if (room.players.length < 2) {
+      socket.emit('error', { message: 'Game requires at least 2 players to start' });
       return;
     }
 

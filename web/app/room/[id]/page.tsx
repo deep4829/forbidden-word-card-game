@@ -85,8 +85,8 @@ export default function RoomPage() {
   }, [roomId]);
 
   const handleStartGame = () => {
-    if (!room || room.players.length !== 4) {
-      setError('Game requires exactly 4 players to start');
+    if (!room || room.players.length < 2) {
+      setError('Game requires at least 2 players to start');
       return;
     }
 
@@ -104,7 +104,7 @@ export default function RoomPage() {
   };
 
   const isRoomCreator = room && room.players.length > 0 && room.players[0].id === currentPlayerId;
-  const canStartGame = room && room.players.length === 4 && isRoomCreator && !room.gameStarted;
+  const canStartGame = room && room.players.length >= 2 && isRoomCreator && !room.gameStarted;
 
   if (isLoading) {
     return (
@@ -188,7 +188,7 @@ export default function RoomPage() {
               <span className="text-2xl font-bold text-indigo-600">
                 {room?.players.length || 0}
               </span>
-              <span className="text-gray-600 font-medium">/ 4</span>
+              <span className="text-gray-600 font-medium">/ 2+</span>
             </div>
           </div>
 
@@ -228,8 +228,8 @@ export default function RoomPage() {
               </div>
             ))}
 
-            {/* Empty Slots */}
-            {Array.from({ length: 4 - (room?.players.length || 0) }).map((_, index) => (
+            {/* Empty Slots - Only show if less than 4 players */}
+            {room && room.players.length < 4 && Array.from({ length: 4 - (room?.players.length || 0) }).map((_, index) => (
               <div
                 key={`empty-${index}`}
                 className="p-4 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50"
@@ -258,26 +258,39 @@ export default function RoomPage() {
               🎮 Start Game
             </button>
             <p className="text-center text-gray-600 mt-4 text-sm">
-              All 4 players are ready! Click to begin the game.
+              All players are ready! Click to begin the game.
             </p>
           </div>
         )}
 
         {/* Waiting Message */}
-        {room && room.players.length < 4 && (
+        {room && room.players.length < 2 && (
           <div className="bg-white rounded-2xl shadow-2xl p-8 text-center">
             <div className="text-6xl mb-4">⏳</div>
             <h3 className="text-xl font-bold text-gray-800 mb-2">
-              Waiting for {4 - room.players.length} more player{4 - room.players.length !== 1 ? 's' : ''}
+              Waiting for {2 - room.players.length} more player{2 - room.players.length !== 1 ? 's' : ''}
             </h3>
             <p className="text-gray-600">
-              Share the room ID with your friends to get started!
+              Share the room ID with your friend to get started! (Minimum 2 players)
             </p>
           </div>
         )}
 
-        {/* Info Message for Non-Host */}
-        {room && room.players.length === 4 && !isRoomCreator && (
+        {/* Ready to Start Message */}
+        {room && room.players.length >= 2 && room.players.length < 4 && !canStartGame && (
+          <div className="bg-white rounded-2xl shadow-2xl p-8 text-center">
+            <div className="text-6xl mb-4">✅</div>
+            <h3 className="text-xl font-bold text-gray-800 mb-2">
+              Ready to Play!
+            </h3>
+            <p className="text-gray-600">
+              You have {room.players.length} player{room.players.length !== 1 ? 's' : ''}. The host can start the game anytime.
+            </p>
+          </div>
+        )}
+
+        {/* Info Message for Non-Host with Enough Players */}
+        {room && room.players.length >= 2 && !isRoomCreator && !canStartGame && (
           <div className="bg-white rounded-2xl shadow-2xl p-8 text-center">
             <div className="text-6xl mb-4">🎯</div>
             <h3 className="text-xl font-bold text-gray-800 mb-2">
