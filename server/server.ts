@@ -20,6 +20,21 @@ app.get('/healthz', (_req, res) => {
   res.status(200).send('OK');
 });
 
+// Root endpoint: show a simple status page so GET / on Render doesn't return 404
+app.get('/', (_req, res) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.status(200).send(`
+    <html>
+      <head><title>Forbidden Word Game</title></head>
+      <body style="font-family:system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial; padding:24px;">
+        <h1>Forbidden Word Game</h1>
+        <p>Server is running. Use the <a href="/healthz">/healthz</a> endpoint for keep-alive pings.</p>
+        <p>Socket server is available on the same host and port for game connections.</p>
+      </body>
+    </html>
+  `);
+});
+
 // Check if HTTPS certificate is available
 const certPath = path.join(__dirname, '..', 'localhost.crt');
 const pfxPath = path.join(__dirname, '..', 'localhost.pfx');
