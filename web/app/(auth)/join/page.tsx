@@ -1,17 +1,27 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import socket from '@/lib/socket';
 
 export default function JoinPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [playerName, setPlayerName] = useState('');
   const [roomId, setRoomId] = useState('');
   const [mode, setMode] = useState<'menu' | 'create' | 'join'>('menu');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isConnected, setIsConnected] = useState(false);
+
+  // Check for roomId in query params (from invite link)
+  useEffect(() => {
+    const inviteRoomId = searchParams.get('roomId');
+    if (inviteRoomId) {
+      setRoomId(inviteRoomId);
+      setMode('join');
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     // Check socket connection status

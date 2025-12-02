@@ -15,6 +15,25 @@ export default function RoomPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
+  const [shareMethod, setShareMethod] = useState<'copy' | 'link' | null>(null);
+
+  // Get the invite URL based on deployment environment
+  const getInviteUrl = () => {
+    if (typeof window === 'undefined') return '';
+    
+    // Use current origin to support both local and deployed environments
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    const port = window.location.port;
+    const baseUrl = `${protocol}//${hostname}${port ? ':' + port : ''}`;
+    
+    return `${baseUrl}/join?roomId=${roomId}`;
+  };
+
+  const isShareAPIAvailable = typeof navigator !== 'undefined' && !!navigator.share;
+
+  // Compute invite URL
+  const inviteUrl = getInviteUrl();
 
   // Set current player ID when socket connects
   useEffect(() => {
@@ -103,6 +122,34 @@ export default function RoomPage() {
     }
   };
 
+  const copyInviteLink = async () => {
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setCopySuccess(true);
+      setShareMethod('link');
+      setTimeout(() => {
+        setCopySuccess(false);
+        setShareMethod(null);
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to copy invite link:', err);
+    }
+  };
+
+  const shareInviteLink = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Join Forbidden Word Game',
+          text: 'Come play the Forbidden Word Game with me!',
+          url: inviteUrl,
+        });
+      } catch (err) {
+        console.error('Failed to share:', err);
+      }
+    }
+  };
+
   const isRoomCreator = room && room.players.length > 0 && room.players[0].id === currentPlayerId;
   const canStartGame = room && room.players.length >= 2 && isRoomCreator && !room.gameStarted;
 
@@ -154,9 +201,9 @@ export default function RoomPage() {
           </div>
 
           {/* Room ID Display */}
-          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 border-2 border-indigo-200">
+          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 border-2 border-indigo-200 mb-4">
             <p className="text-sm font-medium text-gray-600 mb-2">Room ID</p>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 mb-3">
               <code className="text-2xl font-bold text-indigo-600 tracking-wider flex-1">
                 {roomId}
               </code>
@@ -164,11 +211,43 @@ export default function RoomPage() {
                 onClick={copyRoomId}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium whitespace-nowrap"
               >
-                {copySuccess ? '✓ Copied!' : 'Copy ID'}
+                {copySuccess && shareMethod !== 'link' ? '✓ Copied!' : '📋 Copy ID'}
               </button>
             </div>
-            <p className="text-sm text-gray-500 mt-3">
+            <p className="text-sm text-gray-500">
               Share this ID with friends to invite them to the game
+            </p>
+          </div>
+
+          {/* Invite Link Display */}
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border-2 border-green-200">
+            <p className="text-sm font-medium text-gray-600 mb-3">📩 Shareable Invite Link</p>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={inviteUrl}
+                  readOnly
+                  className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-600 truncate"
+                />
+                <button
+                  onClick={copyInviteLink}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium whitespace-nowrap"
+                >
+                  {copySuccess && shareMethod === 'link' ? '✓ Copied!' : 'Copy Link'}
+                </button>
+              </div>
+              {isShareAPIAvailable && (
+                <button
+                  onClick={shareInviteLink}
+                  className="w-full px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium"
+                >
+                  🔗 Share Invite
+                </button>
+              )}
+            </div>
+            <p className="text-sm text-gray-500 mt-3">
+              Share this link directly with friends - they'll join the room automatically!
             </p>
           </div>
         </div>
