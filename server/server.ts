@@ -15,6 +15,11 @@ import { computePoints } from './utils/scoring';
 
 const app = express();
 
+// Keep-alive / health endpoint for external pings (cron-job.org, uptime monitors)
+app.get('/healthz', (_req, res) => {
+  res.status(200).send('OK');
+});
+
 // Check if HTTPS certificate is available
 const certPath = path.join(__dirname, '..', 'localhost.crt');
 const pfxPath = path.join(__dirname, '..', 'localhost.pfx');
