@@ -16,9 +16,20 @@ export default function JoinContent() {
   const [error, setError] = useState('');
   const [isConnected, setIsConnected] = useState(false);
 
-  // Initialize with random avatar on mount
+  // Initialize from localStorage or generate random avatar on mount
   useEffect(() => {
-    setPlayerAvatar(getRandomAvatar());
+    const savedName = localStorage.getItem('playerName');
+    const savedAvatar = localStorage.getItem('playerAvatar');
+    
+    if (savedName) {
+      setPlayerName(savedName);
+    }
+    
+    if (savedAvatar) {
+      setPlayerAvatar(savedAvatar);
+    } else {
+      setPlayerAvatar(getRandomAvatar());
+    }
   }, []);
 
   // Check for roomId in query params (from invite link)
@@ -99,6 +110,10 @@ export default function JoinContent() {
       return;
     }
 
+    // Save to localStorage
+    localStorage.setItem('playerName', playerName.trim());
+    localStorage.setItem('playerAvatar', playerAvatar);
+
     setIsLoading(true);
     setError('');
     socket.emit('create-room', { playerName: playerName.trim(), playerAvatar });
@@ -121,6 +136,10 @@ export default function JoinContent() {
       setError('Not connected to server. Please wait...');
       return;
     }
+
+    // Save to localStorage
+    localStorage.setItem('playerName', playerName.trim());
+    localStorage.setItem('playerAvatar', playerAvatar);
 
     setIsLoading(true);
     setError('');
