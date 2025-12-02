@@ -13,6 +13,7 @@ export interface Card {
 export interface Player {
   id: string;
   name: string;
+  avatar: string;
   isReady: boolean;
   team: 'A' | 'B' | null;
   score: number;
