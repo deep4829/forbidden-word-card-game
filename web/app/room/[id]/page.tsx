@@ -61,6 +61,7 @@ export default function RoomPage() {
       console.log('Room updated:', updatedRoom);
       setRoom(updatedRoom);
       setIsLoading(false);
+      setError(''); // Clear any error when room loads successfully
     };
 
     // Listen for game started
