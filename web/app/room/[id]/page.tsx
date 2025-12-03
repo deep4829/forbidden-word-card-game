@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import socket from '@/lib/socket';
+import { useSound } from '@/lib/useSound';
 import EditProfileModal from '@/components/EditProfileModal';
 import type { Room, Player } from '@/types/game';
 
@@ -54,6 +55,8 @@ export default function RoomPage() {
     };
   }, []);
 
+  const { play } = useSound();
+
   // Socket event listeners
   useEffect(() => {
     // Listen for room updates
@@ -73,6 +76,7 @@ export default function RoomPage() {
     // Listen for errors
     const onError = (data: { message: string }) => {
       setError(data.message);
+      try { play('error'); } catch (e) {}
       setIsLoading(false);
     };
 
@@ -99,6 +103,7 @@ export default function RoomPage() {
       setIsLoading(false);
       if (!room) {
         setError('Failed to load room. Please check the room ID.');
+        try { play('error'); } catch (e) {}
       }
     }, 3000);
 
@@ -110,9 +115,11 @@ export default function RoomPage() {
   const handleStartGame = () => {
     if (!room || room.players.length < 2) {
       setError('Game requires at least 2 players to start');
+      play('error');
       return;
     }
 
+    play('start');
     socket.emit('start-game', roomId);
   };
 
@@ -120,6 +127,7 @@ export default function RoomPage() {
     try {
       await navigator.clipboard.writeText(roomId);
       setCopySuccess(true);
+      try { play('click'); } catch (e) {}
       setTimeout(() => setCopySuccess(false), 2000);
     } catch (err) {
       console.error('Failed to copy room ID:', err);
@@ -131,6 +139,7 @@ export default function RoomPage() {
     if (player) {
       setCurrentPlayer(player);
       setIsEditModalOpen(true);
+      play('click');
     }
   };
 
@@ -148,6 +157,7 @@ export default function RoomPage() {
       await navigator.clipboard.writeText(inviteUrl);
       setCopySuccess(true);
       setShareMethod('link');
+      try { play('click'); } catch (e) {}
       setTimeout(() => {
         setCopySuccess(false);
         setShareMethod(null);
@@ -165,6 +175,7 @@ export default function RoomPage() {
           text: 'Come play the Forbidden Word Game with me!',
           url: inviteUrl,
         });
+        try { play('click'); } catch (e) {}
       } catch (err) {
         console.error('Failed to share:', err);
       }
@@ -214,7 +225,7 @@ export default function RoomPage() {
               <p className="text-sm sm:text-base text-gray-600">Waiting for players to join...</p>
             </div>
             <button
-              onClick={() => router.push('/join')}
+              onClick={() => { play('click'); router.push('/join'); }}
               className="px-3 sm:px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm sm:text-base whitespace-nowrap"
             >
               Leave Room

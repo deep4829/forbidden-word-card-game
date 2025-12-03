@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import socket from '@/lib/socket';
+import { useSound } from '@/lib/useSound';
 import { AVATARS, getRandomAvatar } from '@/lib/avatars';
 
 export default function JoinContent() {
@@ -31,6 +32,8 @@ export default function JoinContent() {
       setPlayerAvatar(getRandomAvatar());
     }
   }, []);
+
+  const { play } = useSound();
 
   // Check for roomId in query params (from invite link)
   useEffect(() => {
@@ -77,6 +80,7 @@ export default function JoinContent() {
     // Listen for errors
     const onError = (data: { message: string }) => {
       setError(data.message);
+      try { play('error'); } catch (e) {}
       setIsLoading(false);
     };
 
@@ -173,6 +177,7 @@ export default function JoinContent() {
                   onClick={() => {
                     setMode('create');
                     setError('');
+                    try { play('click'); } catch (e) {}
                   }}
                   className="w-full py-4 px-6 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-lg rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all transform hover:scale-105 shadow-lg"
                 >
@@ -182,6 +187,7 @@ export default function JoinContent() {
                   onClick={() => {
                     setMode('join');
                     setError('');
+                    try { play('click'); } catch (e) {}
                   }}
                   className="w-full py-4 px-6 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold text-lg rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all transform hover:scale-105 shadow-lg"
                 >
@@ -237,7 +243,7 @@ export default function JoinContent() {
                       <button
                         key={idx}
                         type="button"
-                        onClick={() => setPlayerAvatar(avatar)}
+                        onClick={() => { setPlayerAvatar(avatar); try { play('click'); } catch (e) {} }}
                         className={`text-2xl p-2 rounded-lg transition-all ${ playerAvatar === avatar ? 'bg-indigo-500 scale-125' : 'bg-gray-200 hover:bg-gray-300'}`}
                       >
                         {avatar}

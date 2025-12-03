@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import socket from '@/lib/socket';
 import { useSpeechRecognition } from '@/lib/speech';
+import playSound from '@/lib/sounds';
 import type { Room, Player, Card } from '@/types/game';
 
 interface ClueHistory {
@@ -260,6 +261,14 @@ export default function GamePage() {
   const showFeedback = (message: string, type: 'success' | 'error' | 'info') => {
     setFeedback(message);
     setFeedbackType(type);
+    // Play a short sound for feedback (non-blocking)
+    try {
+      if (type === 'success') playSound('success');
+      else if (type === 'error') playSound('error');
+      else playSound('info');
+    } catch (e) {
+      // ignore sound errors
+    }
     setTimeout(() => setFeedback(''), 5000);
   };
 
