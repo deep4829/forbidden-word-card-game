@@ -797,22 +797,28 @@ export default function GamePage() {
                     Make Your Guess 🎯
                   </h3>
                   
-                  {/* Guesses Remaining */}
-                  <div className="mb-6 flex flex-col sm:flex-row items-center justify-center gap-3">
-                    <span className="text-gray-900 font-bold text-base sm:text-lg">Guesses Remaining:</span>
-                    <div className="flex gap-2">
-                      {Array.from({ length: maxGuesses }).map((_, index) => (
-                        <div
-                          key={index}
-                          className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-bold text-lg shadow-md min-h-[48px] min-w-[48px] ${
-                            index < maxGuesses - guessesUsed
-                              ? 'bg-green-600 text-white ring-2 ring-green-300'
-                              : 'bg-gray-400 text-gray-700 ring-2 ring-gray-300'
-                          }`}
-                        >
-                          {index < maxGuesses - guessesUsed ? '✓' : '✗'}
-                        </div>
-                      ))}
+                  {/* Guesses Remaining - Mobile-friendly compact layout */}
+                  <div className="mb-6">
+                    <div className="flex items-center justify-center gap-2 mb-3">
+                      <span className="text-gray-900 font-bold text-base sm:text-lg">Guesses Remaining:</span>
+                      <span className="font-black text-green-700">{Math.max(0, maxGuesses - guessesUsed)}</span>
+                      <span className="text-gray-500">/ {maxGuesses}</span>
+                    </div>
+                    <div className="mx-auto max-w-full">
+                      <div className="grid grid-cols-5 sm:grid-cols-10 gap-2 sm:gap-2 place-items-center">
+                        {Array.from({ length: maxGuesses }).map((_, index) => (
+                          <div
+                            key={index}
+                            className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-base sm:text-lg shadow-md ${
+                              index < maxGuesses - guessesUsed
+                                ? 'bg-green-600 text-white ring-2 ring-green-300'
+                                : 'bg-gray-400 text-gray-700 ring-2 ring-gray-300'
+                            }`}
+                          >
+                            {index < maxGuesses - guessesUsed ? '✓' : '✗'}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
@@ -889,6 +895,54 @@ export default function GamePage() {
                   </div>
                 </div>
               </>
+            )}
+          </div>
+
+          {/* Floating Controls - Always accessible (speaker & guesser) */}
+          <div className="fixed bottom-6 right-6 z-[1000] space-y-3 pointer-events-auto">
+            {/* Speaker floating start round */}
+            {isSpeaker && !roundActive && currentCard && (
+              <button
+                onClick={handleStartRound}
+                aria-label="Start Round"
+                className="w-16 h-16 rounded-full shadow-2xl flex items-center justify-center text-2xl bg-emerald-600 text-white ring-4 ring-emerald-300 hover:bg-emerald-700 transition-all"
+              >
+                🚀
+              </button>
+            )}
+            {/* Speaker floating mic */}
+            {isSupported && isSpeaker && roundActive && gamePhase !== 'guessing' && (
+              <button
+                onClick={toggleMic}
+                aria-label={isListening ? 'Stop recording' : 'Start recording'}
+                className={`w-16 h-16 rounded-full shadow-2xl flex items-center justify-center text-3xl ring-4 ${
+                  clueHistory.length >= 10
+                    ? 'bg-gray-400 cursor-not-allowed ring-gray-300'
+                    : isListening
+                    ? 'bg-red-600 text-white ring-red-300 animate-pulse'
+                    : 'bg-blue-600 text-white ring-blue-300 hover:bg-blue-700'
+                } transition-all`}
+              >
+                {clueHistory.length >= 10 ? '🚫' : isListening ? '🔴' : '🎤'}
+              </button>
+            )}
+            {/* Guesser floating mic */}
+            {isSupported && !isSpeaker && gamePhase === 'guessing' && !playerHasGuessed && guessesUsed < maxGuesses && (
+              <button
+                onClick={() => {
+                  if (isListening) {
+                    stop();
+                  } else {
+                    start();
+                  }
+                }}
+                aria-label={isListening ? 'Stop recording' : 'Start recording'}
+                className={`w-16 h-16 rounded-full shadow-2xl flex items-center justify-center text-3xl ring-4 ${
+                  isListening ? 'bg-red-600 text-white ring-red-300 animate-pulse' : 'bg-purple-600 text-white ring-purple-300 hover:bg-purple-700'
+                } transition-all`}
+              >
+                {isListening ? '🔴' : '🎤'}
+              </button>
             )}
           </div>
 
