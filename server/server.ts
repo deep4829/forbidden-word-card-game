@@ -90,6 +90,13 @@ const roomCluesGiven = new Map<string, Set<string>>();
 // Store all guesses made in current round per room (for duplicate prevention)
 const roomGuessesGiven = new Map<string, Set<string>>();
 
+// NEW: Turn-based game flow tracking
+// Track whether it's the speaker's turn or guesser's turn
+const roomCluePhase = new Map<string, 'speaker' | 'guessing'>();
+
+// Track which players have already guessed after the current clue
+const roomPlayersWhoGuessed = new Map<string, Set<string>>();
+
 // Helper function to create a new player
 function createPlayer(socketId: string, name: string, avatar: string = '🎮'): Player {
   return {
@@ -169,6 +176,10 @@ async function startGame(room: Room): Promise<boolean> {
   roomRounds.set(room.id, 1);
   roomClueCount.set(room.id, 0);
 
+  // NEW: Initialize turn-based flow - start with speaker's turn
+  roomCluePhase.set(room.id, 'speaker');
+  roomPlayersWhoGuessed.set(room.id, new Set());
+
   // Assign first speaker (first player in the list)
   room.currentClueGiver = room.players[0].id;
 
@@ -241,8 +252,8 @@ function endRound(room: Room, speakerId: string, guesserId: string): { speakerBo
   if (speaker) {
     speaker.score += points.speaker;
 
-    // Calculate unused clues bonus: +1 per unused clue (max 4 clues)
-    const unusedClues = Math.max(0, 4 - clueCount);
+    // Calculate unused clues bonus: +1 per unused clue (max 10 clues)
+    const unusedClues = Math.max(0, 10 - clueCount);
     speakerBonus = unusedClues;
     speaker.score += speakerBonus;
   }
@@ -250,9 +261,9 @@ function endRound(room: Room, speakerId: string, guesserId: string): { speakerBo
   if (guesser) {
     guesser.score += points.guesser;
 
-    // Calculate unused guesses bonus: +0.5 per unused guess (max 3 guesses)
+    // Calculate unused guesses bonus: +0.5 per unused guess (max 10 guesses)
     const guessesUsed = guesser.guessesUsed || 0;
-    const unusedGuesses = Math.max(0, 3 - guessesUsed);
+    const unusedGuesses = Math.max(0, 10 - guessesUsed);
     guesserBonus = unusedGuesses * 0.5;
     guesser.score += guesserBonus;
   }
@@ -426,6 +437,7 @@ io.on('connection', (socket) => {
       room,
       roundNumber: roomRounds.get(roomId),
       currentClueGiver: room.currentClueGiver,
+      phase: roomCluePhase.get(roomId), // NEW: Send the current phase
     });
 
     // Emit card-assigned only to the current speaker
@@ -442,29 +454,34 @@ io.on('connection', (socket) => {
   // Handle speaker-transcript event
   socket.on('speaker-transcript', (data: { roomId: string; transcript: string }) => {
     const { roomId, transcript } = data;
+    console.log(`📤 speaker-transcript received: roomId=${roomId}, speaker=${socket.id}, transcript="${transcript}"`);
     const room = getRoom(roomId);
 
     if (!room) {
+      console.log(`❌ Room not found: ${roomId}`);
       socket.emit('error', { message: 'Room not found' });
       return;
     }
 
     // Verify that the sender is the current clue giver
     if (room.currentClueGiver !== socket.id) {
+      console.log(`❌ Not the speaker. Expected: ${room.currentClueGiver}, Got: ${socket.id}`);
       socket.emit('error', { message: 'Only the current speaker can give clues' });
       return;
     }
 
     // Check if there's a current card
     if (!room.currentCard) {
+      console.log(`❌ No card is currently active`);
       socket.emit('error', { message: 'No card is currently active' });
       return;
     }
 
-    // Check clue limit (max 4 clues per round)
+    // Check clue limit (max 10 clues per round)
     const currentClueCount = roomClueCount.get(roomId) || 0;
-    if (currentClueCount >= 4) {
-      socket.emit('error', { message: 'Maximum clues reached (4 clues per round)' });
+    if (currentClueCount >= 10) {
+      console.log(`❌ Maximum clues reached: ${currentClueCount}`);
+      socket.emit('error', { message: 'Maximum clues reached (10 clues per round)' });
       return;
     }
 
@@ -515,14 +532,19 @@ io.on('connection', (socket) => {
       const currentClueCount = (roomClueCount.get(roomId) || 0) + 1;
       roomClueCount.set(roomId, currentClueCount);
 
+      // NEW: Switch to guessing phase and reset who has guessed
+      roomCluePhase.set(roomId, 'guessing');
+      roomPlayersWhoGuessed.set(roomId, new Set());
+
       // Broadcast the valid clue to all players
       io.to(roomId).emit('clue-broadcast', {
         transcript,
         clueCount: currentClueCount,
         speakerId: socket.id,
+        phase: 'guessing', // Notify all that guessing phase has started
       });
 
-      console.log(`Valid clue in room ${roomId}: "${transcript}" (clue #${currentClueCount})`);
+      console.log(`Valid clue in room ${roomId}: "${transcript}" (clue #${currentClueCount}). Now in GUESSING phase.`);
     }
   });
 
@@ -533,6 +555,13 @@ io.on('connection', (socket) => {
 
     if (!room) {
       socket.emit('error', { message: 'Room not found' });
+      return;
+    }
+
+    // NEW: Check if it's the guessing phase
+    const currentPhase = roomCluePhase.get(roomId);
+    if (currentPhase !== 'guessing') {
+      socket.emit('error', { message: 'It is not the guessing phase yet. Wait for the speaker to give a clue.' });
       return;
     }
 
@@ -548,6 +577,13 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // NEW: Check if this player has already guessed this clue
+    const playersWhoGuessed = roomPlayersWhoGuessed.get(roomId) || new Set();
+    if (playersWhoGuessed.has(socket.id)) {
+      socket.emit('error', { message: 'You have already made your guess for this clue. Waiting for other players...' });
+      return;
+    }
+
     // Find the guesser
     const guesser = room.players.find((p) => p.id === socket.id);
     if (!guesser) {
@@ -556,10 +592,10 @@ io.on('connection', (socket) => {
     }
 
     // Enforce guess limit before processing
-    const maxGuesses = 3; // Maximum guesses per player per round
+    const maxGuesses = 10; // Maximum guesses per player per round
     const currentGuesses = guesser.guessesUsed || 0;
     if (currentGuesses >= maxGuesses) {
-      socket.emit('error', { message: 'Maximum guesses reached (3 per round)' });
+      socket.emit('error', { message: 'Maximum guesses reached (10 per round)' });
       return;
     }
 
@@ -578,6 +614,10 @@ io.on('connection', (socket) => {
 
     // Update guesses used
     guesser.guessesUsed = currentGuesses + 1;
+
+    // NEW: Mark this player as having guessed
+    playersWhoGuessed.add(socket.id);
+    roomPlayersWhoGuessed.set(roomId, playersWhoGuessed);
 
     // Normalize both the guess and the target word
     const normalizedGuess = normalize(guess);
@@ -629,6 +669,10 @@ io.on('connection', (socket) => {
         room,
       });
 
+      // NEW: Reset turn-based flow for new round
+      roomCluePhase.set(roomId, 'speaker');
+      roomPlayersWhoGuessed.set(roomId, new Set());
+
       // Emit final score-updated event
       io.to(roomId).emit('score-updated', {
         room,
@@ -664,6 +708,23 @@ io.on('connection', (socket) => {
 
       console.log(`Incorrect guess in room ${roomId}: "${guess}" by ${guesser.name} (${guesser.guessesUsed}/${maxGuesses})`);
 
+      // NEW: Check if all non-speaker players have guessed
+      const nonSpeakerPlayers = room.players.filter((p) => p.id !== room.currentClueGiver);
+      const allPlayersGuessed = nonSpeakerPlayers.every((p) => playersWhoGuessed.has(p.id));
+
+      if (allPlayersGuessed) {
+        console.log(`[socket] All players have guessed in room ${roomId}. Switching back to SPEAKER phase.`);
+        // Switch back to speaker phase so they can give next clue
+        roomCluePhase.set(roomId, 'speaker');
+        roomPlayersWhoGuessed.set(roomId, new Set()); // Reset for next clue
+        
+        // Notify all players that it's back to speaker phase
+        io.to(roomId).emit('phase-changed', {
+          phase: 'speaker',
+          message: 'All players have guessed! Waiting for the next clue...',
+        });
+      }
+
       // Check if all guessers have exhausted their guesses
       const allGuessersExhausted = room.players
         .filter((p) => p.id !== room.currentClueGiver) // Exclude the speaker
@@ -680,6 +741,10 @@ io.on('connection', (socket) => {
         // Draw next card for the new speaker
         const nextCard = await drawNextCard(room);
         room.currentCard = nextCard;
+
+        // NEW: Reset turn-based flow for new round
+        roomCluePhase.set(roomId, 'speaker');
+        roomPlayersWhoGuessed.set(roomId, new Set());
 
         // Broadcast round ended
         io.to(roomId).emit('round-ended', {

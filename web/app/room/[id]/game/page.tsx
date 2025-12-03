@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import socket from '@/lib/socket';
 import { useSpeechRecognition } from '@/lib/speech';
@@ -49,45 +49,98 @@ export default function GamePage() {
   const [feedbackType, setFeedbackType] = useState<'success' | 'error' | 'info'>('info');
   const [roundActive, setRoundActive] = useState(false);
   const [useManualInput, setUseManualInput] = useState(false);
+  // NEW: Track game phase (speaker giving clue or guessers guessing)
+  // Default to 'speaker' to avoid premature "waiting" state before server event arrives
+  const [gamePhase, setGamePhase] = useState<'speaker' | 'guessing' | null>('speaker');
+  // NEW: Track if current player has already guessed this clue
+  const [playerHasGuessed, setPlayerHasGuessed] = useState(false);
 
   const isSpeaker = room?.currentClueGiver === currentPlayerId;
 
-  // Speech Recognition Hook
+  // Refs to store latest state for speech recognition callback
+  const isSpeakerRef = useRef(isSpeaker);
+  const roundActiveRef = useRef(roundActive);
+  const guessesUsedRef = useRef(0);
+  const roomIdRef = useRef(roomId);
+
+  // Update refs when state changes
+  useEffect(() => {
+    isSpeakerRef.current = isSpeaker;
+  }, [isSpeaker]);
+
+  useEffect(() => {
+    roundActiveRef.current = roundActive;
+  }, [roundActive]);
+
+  useEffect(() => {
+    roomIdRef.current = roomId;
+  }, [roomId]);
+
+  // Refs for game phase and player guess state
+  const gamePhaseRef = useRef<'speaker' | 'guessing' | null>('speaker');
+  const playerHasGuessedRef = useRef(false);
+
+  useEffect(() => {
+    gamePhaseRef.current = gamePhase;
+  }, [gamePhase]);
+
+  useEffect(() => {
+    playerHasGuessedRef.current = playerHasGuessed;
+  }, [playerHasGuessed]);
+
+  // Create stable callbacks for speech recognition
+  const handleSpeechResult = useCallback((text: string) => {
+    console.log('handleSpeechResult called with text:', text, 'isSpeaker:', isSpeakerRef.current, 'roundActive:', roundActiveRef.current);
+    const trimmedText = text.trim();
+    if (!trimmedText) return;
+    
+    if (isSpeakerRef.current && roundActiveRef.current) {
+      console.log('📤 Speaker sending clue:', trimmedText);
+      socket.emit('speaker-transcript', { roomId: roomIdRef.current, transcript: trimmedText });
+      showFeedback('Clue sent!', 'success');
+    } else if (!isSpeakerRef.current) {
+      // NEW: Check if it's the guessing phase
+      if (gamePhaseRef.current !== 'guessing') {
+        showFeedback('Waiting for the speaker to give a clue...', 'info');
+        return;
+      }
+      // NEW: Check if player has already guessed this clue
+      if (playerHasGuessedRef.current) {
+        showFeedback('You have already guessed this clue. Waiting for other players...', 'info');
+        return;
+      }
+      // Guesser voice guess
+      console.log('🎯 Guesser sending guess:', trimmedText);
+      if (guessesUsedRef.current >= 10) {
+        showFeedback('No guesses left!', 'error');
+        return;
+      }
+      socket.emit('guesser-guess', { roomId: roomIdRef.current, guess: trimmedText });
+      // NEW: Mark that player has guessed
+      setPlayerHasGuessed(true);
+      if (guessesUsedRef.current + 1 >= 10) {
+        showFeedback('You used all 10 voice guesses.', 'info');
+      }
+    } else {
+      console.log('⚠️ handleSpeechResult: not in active state');
+    }
+  }, []);
+
+  const handleSpeechError = useCallback((error: string) => {
+    console.error('🎤 Speech error:', error);
+    if (error === 'not-allowed' || error === 'permission-denied') {
+      showFeedback('Microphone permission denied. Please allow microphone access.', 'error');
+    } else if (error === 'no-speech') {
+      showFeedback('No speech detected. Try speaking again.', 'info');
+    } else {
+      showFeedback(`Speech recognition error: ${error}`, 'error');
+    }
+  }, []);
+
+  // Speech Recognition Hook with stable callbacks
   const { isListening, isSupported, transcript, start, stop } = useSpeechRecognition({
-    onResult: (transcript: string) => {
-      const text = transcript.trim();
-      if (!text) return;
-      if (isSpeaker && roundActive) {
-        console.log('Sending clue:', text);
-        socket.emit('speaker-transcript', { roomId, transcript: text });
-        showFeedback('Clue sent!', 'success');
-        stop();
-      } else if (!isSpeaker) {
-        // Guesser voice guess
-        if (guessesUsed >= maxGuesses) {
-          showFeedback('No guesses left!', 'error');
-          stop();
-          return;
-        }
-        console.log('Voice guess:', text);
-        socket.emit('guesser-guess', { roomId, guess: text });
-        // Auto-stop after one utterance, and if limit now reached, prevent further starts
-        stop();
-        if (guessesUsed + 1 >= maxGuesses) {
-          showFeedback('You used all 3 voice guesses.', 'info');
-        }
-      }
-    },
-    onError: (error: string) => {
-      console.error('Speech error:', error);
-      if (error === 'not-allowed' || error === 'permission-denied') {
-        showFeedback('Microphone permission denied. Please allow microphone access.', 'error');
-      } else if (error === 'no-speech') {
-        showFeedback('No speech detected. Try speaking again.', 'info');
-      } else {
-        showFeedback(`Speech recognition error: ${error}`, 'error');
-      }
-    },
+    onResult: handleSpeechResult,
+    onError: handleSpeechError,
   });
 
   // Set current player ID when socket connects
@@ -122,7 +175,7 @@ export default function GamePage() {
   useEffect(() => {
     // Room updated event
     const onRoomUpdated = (updatedRoom: Room) => {
-      console.log('Room updated:', updatedRoom);
+      console.log('✅ onRoomUpdated received:', updatedRoom);
       setRoom(updatedRoom);
       // Also set the current card if it exists
       if (updatedRoom.currentCard) {
@@ -138,11 +191,19 @@ export default function GamePage() {
     };
 
     // Clue broadcast event
-    const onClueBroadcast = (data: ClueHistory) => {
+    const onClueBroadcast = (data: ClueHistory & { phase?: string }) => {
+      console.log('✅ onClueBroadcast received:', data);
+      // NEW: Update game phase if included in the event
+      if (data.phase && (data.phase === 'speaker' || data.phase === 'guessing')) {
+        setGamePhase(data.phase);
+      }
+      // NEW: Reset playerHasGuessed when a new clue comes
+      setPlayerHasGuessed(false);
       setClueHistory((prev) => {
         const updated = [...prev, data];
-        // Stop microphone if 4 clues have been given
-        if (updated.length >= 4 && isListeningRef.current) {
+        console.log('Updated clueHistory:', updated);
+        // Stop microphone if 10 clues have been given
+        if (updated.length >= 10 && isListeningRef.current) {
           stopRef.current();
           showFeedback('Maximum clues reached! Waiting for guesses...', 'info');
         }
@@ -160,8 +221,10 @@ export default function GamePage() {
 
     // Guess result event
     const onGuessResult = (data: GuessResult) => {
+      console.log('✅ onGuessResult received:', data);
       // Update room state with latest player data (includes guessesUsed)
       if (data.room) {
+        console.log('Updating room from guess result:', data.room);
         setRoom(data.room);
       }
       
@@ -209,10 +272,13 @@ export default function GamePage() {
     };
 
     // Game started event
-    const onGameStarted = (data: { room: Room; roundNumber: number; currentClueGiver: string }) => {
+    const onGameStarted = (data: { room: Room; roundNumber: number; currentClueGiver: string; phase?: 'speaker' | 'guessing' }) => {
       console.log('Game started:', data);
       setRoom(data.room);
       setRoundNumber(data.roundNumber);
+      // NEW: Use phase from server if provided, otherwise default to speaker
+      setGamePhase(data.phase || 'speaker');
+      setPlayerHasGuessed(false);
       
       // If the current player is the speaker, request the card
       // This handles the race condition where card-assigned was emitted before listener was ready
@@ -220,6 +286,17 @@ export default function GamePage() {
         console.log('Player is speaker, requesting card assignment...');
         socket.emit('get-room', roomId);
       }
+    };
+
+    // NEW: Phase changed event (speaker phase or guessing phase)
+    const onPhaseChanged = (data: { phase: 'speaker' | 'guessing'; message: string }) => {
+      console.log('🎮 Phase changed:', data.phase);
+      setGamePhase(data.phase);
+      // Reset playerHasGuessed when switching back to speaker phase
+      if (data.phase === 'speaker') {
+        setPlayerHasGuessed(false);
+      }
+      showFeedback(data.message, 'info');
     };
 
     // Error event
@@ -235,7 +312,10 @@ export default function GamePage() {
     socket.on('round-ended', onRoundEnded);
     socket.on('score-updated', onScoreUpdated);
     socket.on('game-started', onGameStarted);
+    socket.on('phase-changed', onPhaseChanged);
     socket.on('error', onError);
+    
+    console.log('🔗 Socket listeners registered for room:', roomId, 'player:', currentPlayerId);
 
     return () => {
       socket.off('room-updated', onRoomUpdated);
@@ -246,15 +326,18 @@ export default function GamePage() {
       socket.off('round-ended', onRoundEnded);
       socket.off('score-updated', onScoreUpdated);
       socket.off('game-started', onGameStarted);
+      socket.off('phase-changed', onPhaseChanged);
       socket.off('error', onError);
     };
-  }, [roomId, currentPlayerId]);
+  }, [roomId, currentPlayerId, clueHistory.length]);
 
   // Request initial room data when page loads
   useEffect(() => {
     if (roomId && socket.connected) {
-      console.log('Requesting room data for game page:', roomId);
+      console.log('🔗 Socket connected, requesting room data for game page:', roomId);
       socket.emit('get-room', roomId);
+    } else {
+      console.warn('Socket not ready - connected:', socket.connected, 'roomId:', roomId);
     }
   }, [roomId]);
 
@@ -276,7 +359,21 @@ export default function GamePage() {
     e.preventDefault();
     if (!guessInput.trim()) return;
 
+    // NEW: Check if it's the guessing phase
+    if (gamePhase !== 'guessing') {
+      showFeedback('Waiting for the speaker to give a clue...', 'info');
+      return;
+    }
+
+    // NEW: Check if player has already guessed this clue
+    if (playerHasGuessed) {
+      showFeedback('You have already guessed this clue. Waiting for other players...', 'info');
+      return;
+    }
+
     socket.emit('guesser-guess', { roomId, guess: guessInput.trim() });
+    // NEW: Mark that player has guessed
+    setPlayerHasGuessed(true);
     setGuessInput('');
   };
 
@@ -301,23 +398,37 @@ export default function GamePage() {
     // Auto-start microphone
     setTimeout(() => {
       if (isSupported) {
+        console.log('🎤 Auto-starting microphone for speaker');
         start();
       }
     }, 500);
   };
 
   const toggleMic = () => {
+    console.log('toggleMic called - isListening:', isListening, 'isSupported:', isSupported, 'roundActive:', roundActive, 'clueCount:', clueHistory.length);
+    
     if (!roundActive) {
       showFeedback('Please start the round first!', 'error');
       return;
     }
-    if (clueHistory.length >= 4) {
-      showFeedback('Maximum 4 clues already given!', 'error');
+    
+    // NEW: Check if speaker can give clues (only in speaker phase)
+    if (isSpeaker && gamePhase === 'guessing') {
+      showFeedback('Waiting for all players to guess before next clue...', 'info');
       return;
     }
+    
+    if (clueHistory.length >= 10) {
+      showFeedback('Maximum 10 clues already given!', 'error');
+      return;
+    }
+    
+    console.log('About to toggle mic - isListening:', isListening);
     if (isListening) {
+      console.log('Stopping microphone...');
       stop();
     } else {
+      console.log('Starting microphone...');
       start();
     }
   };
@@ -325,7 +436,12 @@ export default function GamePage() {
   const currentPlayer = room?.players.find((p) => p.id === currentPlayerId);
   const speaker = room?.players.find((p) => p.id === room.currentClueGiver);
   const guessesUsed = (currentPlayer as Player & { guessesUsed?: number })?.guessesUsed || 0;
-  const maxGuesses = 3;
+  const maxGuesses = 10;
+
+  // Update guesses ref
+  useEffect(() => {
+    guessesUsedRef.current = guessesUsed;
+  }, [guessesUsed]);
 
   if (!room) {
     return (
@@ -534,7 +650,7 @@ export default function GamePage() {
                           onChange={(e) => setManualClueInput(e.target.value)}
                           placeholder="Type a clue to help guessers find the word..."
                           className="w-full px-4 sm:px-5 py-3 sm:py-4 text-base sm:text-lg border-4 border-gray-300 rounded-xl focus:ring-4 focus:ring-orange-500 focus:border-orange-500 outline-none transition text-gray-900 font-medium placeholder-gray-500 shadow-inner min-h-[100px] resize-none"
-                          disabled={clueHistory.length >= 4}
+                          disabled={clueHistory.length >= 10 || gamePhase === 'guessing'}
                           maxLength={200}
                         />
                         <p className="text-xs text-gray-500 mt-2">
@@ -545,10 +661,10 @@ export default function GamePage() {
                       <div className="space-y-3">
                         <button
                           type="submit"
-                          disabled={!manualClueInput.trim() || clueHistory.length >= 4}
+                          disabled={!manualClueInput.trim() || clueHistory.length >= 10 || gamePhase === 'guessing'}
                           className="w-full py-4 sm:py-5 bg-gradient-to-r from-orange-600 to-red-600 text-white text-lg sm:text-xl font-black rounded-xl hover:from-orange-700 hover:to-red-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95 shadow-2xl min-h-[56px] uppercase tracking-wide"
                         >
-                          {clueHistory.length >= 4 ? '🚫 Max Clues Reached' : '📤 Submit Clue'}
+                          {gamePhase !== 'speaker' ? '⏳ Waiting for Guesses...' : clueHistory.length >= 10 ? '🚫 Max Clues Reached' : '📤 Submit Clue'}
                         </button>
 
                         <button
@@ -568,14 +684,14 @@ export default function GamePage() {
                         <ul className="list-disc list-inside space-y-1 text-xs">
                           <li>Type clear, descriptive clues</li>
                           <li>Avoid using the forbidden words</li>
-                          <li>Maximum 4 clues per round</li>
+                          <li>Maximum 10 clues per round</li>
                         </ul>
                       </div>
 
                       <div className="flex items-center justify-center gap-3 py-3 border-t-2 border-gray-200">
                         <span className="text-sm font-medium text-gray-600">Clues given:</span>
                         <span className="text-2xl font-black text-purple-600">{clueHistory.length}</span>
-                        <span className="text-sm text-gray-500">/ 4 max</span>
+                        <span className="text-sm text-gray-500">/ 10 max</span>
                       </div>
                     </form>
                   ) : (
@@ -585,32 +701,35 @@ export default function GamePage() {
                       <div className="flex justify-center">
                         <button
                           onClick={toggleMic}
-                          disabled={clueHistory.length >= 4}
+                          disabled={clueHistory.length >= 10 || gamePhase === 'guessing'}
                           aria-label={isListening ? 'Stop recording' : 'Start recording'}
                           className={`w-32 h-32 sm:w-36 sm:h-36 md:w-40 md:h-40 rounded-full flex items-center justify-center text-6xl sm:text-7xl transition-all transform shadow-2xl min-h-[128px] min-w-[128px] ${
-                            clueHistory.length >= 4
+                            clueHistory.length >= 10 || gamePhase !== 'speaker'
                               ? 'bg-gray-400 cursor-not-allowed'
                               : isListening
                               ? 'bg-red-600 hover:bg-red-700 animate-pulse ring-4 ring-red-300 hover:scale-110 active:scale-95'
                               : 'bg-blue-600 hover:bg-blue-700 ring-4 ring-blue-300 hover:scale-110 active:scale-95'
                           }`}
                         >
-                          {clueHistory.length >= 4 ? '🚫' : isListening ? '🔴' : '🎤'}
+                          {clueHistory.length >= 10 ? '🚫' : gamePhase === 'guessing' ? '⏳' : isListening ? '🔴' : '🎤'}
                         </button>
                       </div>
 
                       {/* Status */}
                       <div className="text-center space-y-2">
                         <p className="text-base sm:text-lg md:text-xl font-bold text-gray-900">
-                          {isListening ? '🎙️ Listening... Speak now!' : 'Click mic to speak'}
+                          {gamePhase === 'guessing' ? '⏳ Waiting for other players to guess...' : isListening ? '🎙️ Listening... Speak now!' : 'Click mic to speak'}
                         </p>
                         <div className="flex items-center justify-center gap-3">
                           <span className="text-sm font-medium text-gray-600">Clues given:</span>
                           <span className="text-2xl font-black text-purple-600">{clueHistory.length}</span>
-                          <span className="text-sm text-gray-500">/ 4 max</span>
+                          <span className="text-sm text-gray-500">/ 10 max</span>
                         </div>
-                        {clueHistory.length >= 4 && (
+                        {clueHistory.length >= 10 && (
                           <p className="text-red-600 font-bold text-sm">⚠️ Maximum clues reached!</p>
+                        )}
+                        {gamePhase === 'guessing' && (
+                          <p className="text-orange-600 font-bold text-sm">⏳ Waiting for other players to make their guesses...</p>
                         )}
                       </div>
 
@@ -707,15 +826,15 @@ export default function GamePage() {
                         placeholder="Type your guess..."
                         aria-label="Guess input"
                         className="w-full px-5 sm:px-6 py-4 sm:py-5 text-base sm:text-lg md:text-xl border-4 border-gray-300 rounded-xl focus:ring-4 focus:ring-purple-500 focus:border-purple-500 outline-none transition text-gray-900 font-medium placeholder-gray-500 shadow-inner min-h-[56px]"
-                        disabled={guessesUsed >= maxGuesses}
+                        disabled={guessesUsed >= maxGuesses || gamePhase !== 'guessing' || playerHasGuessed}
                         maxLength={50}
                       />
                       <button
                         type="submit"
-                        disabled={!guessInput.trim() || guessesUsed >= maxGuesses}
+                        disabled={!guessInput.trim() || guessesUsed >= maxGuesses || gamePhase !== 'guessing' || playerHasGuessed}
                         className="w-full py-4 sm:py-5 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-lg sm:text-xl font-black rounded-xl hover:from-purple-700 hover:to-pink-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95 shadow-2xl min-h-[56px] uppercase tracking-wide"
                       >
-                        {guessesUsed >= maxGuesses ? '🚫 No Guesses Left' : '🎯 Submit Guess'}
+                        {playerHasGuessed ? '✓ You Guessed' : guessesUsed >= maxGuesses ? '🚫 No Guesses Left' : gamePhase !== 'guessing' ? '⏳ Waiting for Clue...' : '🎯 Submit Guess'}
                       </button>
                     </form>
 
@@ -728,6 +847,14 @@ export default function GamePage() {
                         <div className="flex flex-col items-center gap-3">
                           <button
                             onClick={() => {
+                              if (gamePhase !== 'guessing') {
+                                showFeedback('Waiting for the speaker to give a clue...', 'info');
+                                return;
+                              }
+                              if (playerHasGuessed) {
+                                showFeedback('You have already guessed this clue.', 'info');
+                                return;
+                              }
                               if (guessesUsed >= maxGuesses) {
                                 showFeedback('No guesses left!', 'error');
                                 return;
@@ -738,17 +865,17 @@ export default function GamePage() {
                                 start();
                               }
                             }}
-                            disabled={guessesUsed >= maxGuesses}
+                            disabled={guessesUsed >= maxGuesses || gamePhase !== 'guessing' || playerHasGuessed}
                             aria-label={isListening ? 'Stop recording' : 'Start recording'}
                             className={`w-24 h-24 rounded-full flex items-center justify-center text-4xl transition-all transform shadow-2xl ${
-                              guessesUsed >= maxGuesses
+                              guessesUsed >= maxGuesses || gamePhase !== 'guessing' || playerHasGuessed
                                 ? 'bg-gray-400 cursor-not-allowed'
                                 : isListening
                                 ? 'bg-red-600 hover:bg-red-700 animate-pulse ring-4 ring-red-300'
                                 : 'bg-purple-600 hover:bg-purple-700 ring-4 ring-purple-300'
                             }`}
                           >
-                            {guessesUsed >= maxGuesses ? '🚫' : isListening ? '🔴' : '🎤'}
+                            {playerHasGuessed ? '✓' : guessesUsed >= maxGuesses ? '🚫' : gamePhase !== 'guessing' ? '⏳' : isListening ? '🔴' : '🎤'}
                           </button>
                           {transcript && (
                             <div className="text-center text-sm text-gray-700">
