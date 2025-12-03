@@ -722,7 +722,7 @@ export default function GamePage() {
                       {/* Status */}
                       <div className="text-center space-y-2">
                         <p className="text-base sm:text-lg md:text-xl font-bold text-gray-900">
-                          {gamePhase === 'guessing' ? '⏳ Waiting for other players to guess...' : isListening ? '🎙️ Listening... Speak now!' : 'Click mic to speak'}
+                          {gamePhase === 'guessing' ? '⏳ Waiting for other players to guess...' : isListening ? '🎙️ Listening... Click again to send!' : 'Click mic to speak'}
                         </p>
                         <div className="flex items-center justify-center gap-3">
                           <span className="text-sm font-medium text-gray-600">Clues given:</span>
@@ -751,8 +751,8 @@ export default function GamePage() {
                       <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-3 text-sm text-gray-700">
                         <p className="font-semibold mb-1">💡 Tips:</p>
                         <ul className="list-disc list-inside space-y-1 text-xs">
-                          <li>Speak clearly and pause between clues</li>
-                          <li>Each sentence you complete is sent as a clue</li>
+                          <li>Click mic to start, speak your clue, then click again to send</li>
+                          <li>Your clue is sent only when you stop the mic</li>
                           <li>Avoid forbidden words or lose points!</li>
                         </ul>
                       </div>
@@ -892,7 +892,7 @@ export default function GamePage() {
                               Heard: <span className="font-bold">{transcript}</span>
                             </div>
                           )}
-                          <div className="text-xs text-gray-500 text-center">Speak a single word or short phrase</div>
+                          <div className="text-xs text-gray-500 text-center">Click to start, speak, then click again to send</div>
                         </div>
                       )}
                     </div>
