@@ -217,6 +217,10 @@ export default function GamePage() {
         `Forbidden word detected! ${data.playerName} said: ${data.violations.join(', ')} (${data.penalty} points)`,
         'error'
       );
+      // Stop microphone if the current player said the forbidden word
+      if (data.playerId === currentPlayerId && isListeningRef.current) {
+        stopRef.current();
+      }
     };
 
     // Guess result event

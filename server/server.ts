@@ -505,6 +505,9 @@ io.on('connection', (socket) => {
     ]);
 
     if (violations.length > 0) {
+      // Remove the clue from the set since it was invalid (allow retry)
+      cluesSet.delete(normalizedClue);
+      
       // Apply -5 penalty to the speaker
       const speaker = room.players.find((p) => p.id === socket.id);
       if (speaker) {
