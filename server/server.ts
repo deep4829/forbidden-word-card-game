@@ -12,6 +12,7 @@ import { Room, Player, Card } from './types/game';
 import { loadAndShuffleDeck } from './lib/supabase';
 import { checkForbidden, normalize } from './utils/forbiddenCheck';
 import { computePoints } from './utils/scoring';
+import { isMatchingGuess } from './utils/compareWords';
 
 const app = express();
 
@@ -622,12 +623,9 @@ io.on('connection', (socket) => {
     playersWhoGuessed.add(socket.id);
     roomPlayersWhoGuessed.set(roomId, playersWhoGuessed);
 
-    // Normalize both the guess and the target word
-    const normalizedGuess = normalize(guess);
-    const normalizedTarget = normalize(room.currentCard.mainWord);
-
-    // Check if guess is correct
-    if (normalizedGuess === normalizedTarget) {
+    // Check if guess matches target word using fuzzy matching
+    // This handles spelling variations, phonetic similarities, and typos
+    if (isMatchingGuess(guess, room.currentCard.mainWord)) {
       // Correct guess!
       const clueCount = roomClueCount.get(roomId) || 0;
       const points = computePoints(clueCount);
