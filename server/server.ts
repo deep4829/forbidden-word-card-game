@@ -386,6 +386,41 @@ io.on('connection', (socket) => {
     }
   });
 
+  // NEW: Handle get-game-state event - sync full game state on reconnect during active game
+  socket.on('get-game-state', (roomId: string) => {
+    const room = getRoom(roomId);
+    if (!room) {
+      socket.emit('error', { message: 'Room not found' });
+      return;
+    }
+
+    updateRoomActivity(roomId);
+
+    // Get which players have already guessed (if in guessing phase)
+    const playersWhoGuessed = Array.from(roomPlayersWhoGuessed.get(roomId) || new Set());
+
+    // Get current game state
+    const gameState = {
+      room,
+      roundNumber: roomRounds.get(roomId) || 1,
+      currentClueGiver: room.currentClueGiver,
+      phase: roomCluePhase.get(roomId) || 'speaker',
+      clueCount: roomClueCount.get(roomId) || 0,
+      playersWhoGuessed, // Include players who have guessed
+      timestamp: new Date().getTime(),
+    };
+
+    console.log(`[get-game-state] Sending game state for room ${roomId}:`, {
+      roundNumber: gameState.roundNumber,
+      currentClueGiver: gameState.currentClueGiver,
+      phase: gameState.phase,
+      clueCount: gameState.clueCount,
+      playersWhoGuessed: gameState.playersWhoGuessed,
+    });
+
+    socket.emit('game-state-synced', gameState);
+  });
+
   // Handle join-room event
   socket.on('join-room', (data: { roomId: string; playerName: string; playerAvatar?: string }) => {
     const { roomId, playerName, playerAvatar = '🎮' } = data;

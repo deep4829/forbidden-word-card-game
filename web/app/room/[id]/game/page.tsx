@@ -67,11 +67,12 @@ export default function GamePage() {
         clueHistory,
         roundNumber,
         playerHasGuessed,
+        gamePhase,
         timestamp: new Date().getTime(),
       };
       localStorage.setItem(`game_${roomId}`, JSON.stringify(gameState));
     }
-  }, [room, roomId, currentCard, clueHistory, roundNumber, playerHasGuessed]);
+  }, [room, roomId, currentCard, clueHistory, roundNumber, playerHasGuessed, gamePhase]);
 
   // Restore game state from localStorage on mount
   useEffect(() => {
@@ -84,6 +85,13 @@ export default function GamePage() {
         setClueHistory(parsed.clueHistory);
         setRoundNumber(parsed.roundNumber);
         setPlayerHasGuessed(parsed.playerHasGuessed);
+        setGamePhase(parsed.gamePhase || 'speaker');
+        console.log('✅ Game state restored from localStorage:', {
+          room: parsed.room,
+          roundNumber: parsed.roundNumber,
+          gamePhase: parsed.gamePhase,
+          currentClueGiver: parsed.room?.currentClueGiver,
+        });
       } catch (e) {
         console.error('Failed to restore game state:', e);
       }
@@ -206,6 +214,53 @@ export default function GamePage() {
 
   // Socket event listeners
   useEffect(() => {
+    // NEW: Handle game-state-synced event (full sync on reconnect)
+    const onGameStateSynced = (data: {
+      room: Room;
+      roundNumber: number;
+      currentClueGiver: string;
+      phase: 'speaker' | 'guessing';
+      clueCount: number;
+      playersWhoGuessed?: string[];
+      timestamp: number;
+    }) => {
+      console.log('✅ Game state synced from server:', {
+        roundNumber: data.roundNumber,
+        currentClueGiver: data.currentClueGiver,
+        phase: data.phase,
+        isSpeaker: data.currentClueGiver === currentPlayerId,
+        playerHasGuessed: data.playersWhoGuessed?.includes(currentPlayerId) || false,
+      });
+      
+      setRoom(data.room);
+      setRoundNumber(data.roundNumber);
+      setGamePhase(data.phase);
+      
+      // Sync whether current player has guessed
+      const playerHasGuessedSync = data.playersWhoGuessed?.includes(currentPlayerId) || false;
+      setPlayerHasGuessed(playerHasGuessedSync);
+      
+      // Reset clue history based on server state
+      // The clue history should be rebuilt from room data or cleared to sync with server
+      if (data.phase === 'guessing') {
+        setClueHistory((prev) => {
+          // Keep local clue history if phase matches, but sync with what server knows
+          return prev.length > 0 ? prev : [];
+        });
+      } else {
+        setClueHistory([]);
+      }
+      
+      // If this player is the new speaker, request the card
+      if (data.currentClueGiver === currentPlayerId && data.room.currentCard) {
+        console.log('Player is speaker, current card available');
+        setCurrentCard(data.room.currentCard);
+      } else if (data.currentClueGiver === currentPlayerId && !data.room.currentCard) {
+        console.log('Player is speaker but no card yet, requesting card...');
+        socket.emit('get-game-state', roomId);
+      }
+    };
+
     // Room updated event
     const onRoomUpdated = (updatedRoom: Room) => {
       console.log('✅ onRoomUpdated received:', updatedRoom);
@@ -349,6 +404,7 @@ export default function GamePage() {
     };
 
     socket.on('room-updated', onRoomUpdated);
+    socket.on('game-state-synced', onGameStateSynced);
     socket.on('card-assigned', onCardAssigned);
     socket.on('clue-broadcast', onClueBroadcast);
     socket.on('forbidden-detected', onForbiddenDetected);
@@ -363,6 +419,7 @@ export default function GamePage() {
 
     return () => {
       socket.off('room-updated', onRoomUpdated);
+      socket.off('game-state-synced', onGameStateSynced);
       socket.off('card-assigned', onCardAssigned);
       socket.off('clue-broadcast', onClueBroadcast);
       socket.off('forbidden-detected', onForbiddenDetected);
@@ -378,8 +435,9 @@ export default function GamePage() {
   // Request initial room data when page loads
   useEffect(() => {
     if (roomId && socket.connected) {
-      console.log('🔗 Socket connected, requesting room data for game page:', roomId);
-      socket.emit('get-room', roomId);
+      console.log('🔗 Socket connected, requesting game state for game page:', roomId);
+      // Request full game state sync (includes room, round, phase, clue count, etc)
+      socket.emit('get-game-state', roomId);
     } else {
       console.warn('Socket not ready - connected:', socket.connected, 'roomId:', roomId);
     }
