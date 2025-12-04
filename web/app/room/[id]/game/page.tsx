@@ -255,6 +255,9 @@ export default function GamePage() {
         showFeedback('Round ended! Preparing next round...', 'success');
       }
       
+      // Hard reset local per-round state to avoid stale locks
+      setGamePhase('speaker');
+      setPlayerHasGuessed(false);
       setClueHistory([]);
       setCurrentCard(null);
       setGuessInput('');
@@ -282,7 +285,11 @@ export default function GamePage() {
       setRoundNumber(data.roundNumber);
       // NEW: Use phase from server if provided, otherwise default to speaker
       setGamePhase(data.phase || 'speaker');
+      // Ensure local state resets at round start
       setPlayerHasGuessed(false);
+      setRoundActive(false);
+      setClueHistory([]);
+      stopRef.current();
       
       // If the current player is the speaker, request the card
       // This handles the race condition where card-assigned was emitted before listener was ready
