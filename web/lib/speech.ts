@@ -47,6 +47,10 @@ export function useSpeechRecognition(
   const accumulatedTranscriptRef = useRef<string>(''); // Store accumulated transcript
   // Track whether stop() was intentionally invoked by user (manual stop)
   const manualStopRequestedRef = useRef<boolean>(false);
+  // Track mobile detection
+  const isMobileRef = useRef<boolean>(false);
+  // Track if user called stop (to avoid restart loops)
+  const userStoppedRef = useRef<boolean>(false);
 
   useEffect(() => {
     // Check if browser supports Speech Recognition
@@ -68,6 +72,7 @@ export function useSpeechRecognition(
     // Mobile browsers (iOS/Android) are more reliable with non-continuous, no interim
     const ua = typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase() : '';
     const isMobile = /iphone|ipad|ipod|android/.test(ua);
+    isMobileRef.current = isMobile;
     // Keep listening on mobile until user manually stops
     recognition.continuous = isMobile ? true : continuous;
     recognition.interimResults = isMobile ? false : interimResults;
@@ -85,6 +90,15 @@ export function useSpeechRecognition(
       // Accumulate final results but don't send yet
       if (result.isFinal) {
         accumulatedTranscriptRef.current = transcriptText;
+        // On mobile, restart recognition after final result to keep listening
+        if (isMobileRef.current && recognitionRef.current && !userStoppedRef.current) {
+          try {
+            console.log('Mobile: Restarting recognition to keep listening...');
+            recognitionRef.current.start();
+          } catch (e) {
+            // Ignore if already started
+          }
+        }
       }
     };
 
@@ -188,9 +202,10 @@ export function useSpeechRecognition(
   const stop = () => {
     console.log('Speech.stop() called - isListening:', isListening, 'recognitionRef exists:', !!recognitionRef.current);
     
+    userStoppedRef.current = true;
     if (isListening && recognitionRef.current) {
       try {
-        console.log('Calling recognition.stop()');;
+        console.log('Calling recognition.stop()');
         // mark that this end is manual
         manualStopRequestedRef.current = true;
         recognitionRef.current.stop();
@@ -207,6 +222,8 @@ export function useSpeechRecognition(
       mediaStreamRef.current.getTracks().forEach(track => track.stop());
       mediaStreamRef.current = null;
     }
+    
+    userStoppedRef.current = false;
   };
 
   return {
