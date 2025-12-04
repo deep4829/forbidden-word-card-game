@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import socket from '@/lib/socket';
 import { useSound } from '@/lib/useSound';
 import { AVATARS, getRandomAvatar } from '@/lib/avatars';
+import HowToPlayButton from '@/app/components/HowToPlayButton';
 
 export default function JoinContent() {
   const router = useRouter();
@@ -357,6 +358,9 @@ export default function JoinContent() {
             Play, guess, and have fun with friends! 🎉
           </p>
         </div>
+
+        {/* How to Play Button */}
+        <HowToPlayButton />
       </div>
     </div>
   );

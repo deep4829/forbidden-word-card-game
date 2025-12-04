@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import socket from '@/lib/socket';
 import { useSound } from '@/lib/useSound';
 import EditProfileModal from '@/components/EditProfileModal';
+import HowToPlayButton from '@/app/components/HowToPlayButton';
 import type { Room, Player } from '@/types/game';
 
 export default function RoomPage() {
@@ -102,7 +103,7 @@ export default function RoomPage() {
     const timeout = setTimeout(() => {
       setIsLoading(false);
       if (!room) {
-        setError('Failed to load room. Please check the room ID.');
+        setError('');
         try { play('error'); } catch (e) {}
       }
     }, 3000);
@@ -434,6 +435,9 @@ export default function RoomPage() {
             onSave={handleProfileSave}
           />
         )}
+
+        {/* How to Play Button */}
+        <HowToPlayButton />
       </div>
     </div>
   );
