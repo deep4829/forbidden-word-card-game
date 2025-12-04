@@ -437,9 +437,24 @@ io.on('connection', (socket) => {
     const existingPlayer = room.players.find((p) => p.name === playerName && p.avatar === playerAvatar);
     
     if (existingPlayer) {
+      const previousSocketId = existingPlayer.id;
       // Reconnection case: update the socket ID and rejoin
-      console.log(`[rejoin] Player ${playerName} reconnecting. Old socket: ${existingPlayer.id}, New socket: ${socket.id}`);
+      console.log(`[rejoin] Player ${playerName} reconnecting. Old socket: ${previousSocketId}, New socket: ${socket.id}`);
       existingPlayer.id = socket.id;  // Update socket ID
+
+      // If this player is the current speaker, update the room's reference
+      if (room.currentClueGiver === previousSocketId) {
+        room.currentClueGiver = socket.id;
+      }
+
+      // Update any tracking sets that store player socket IDs
+      const playersWhoGuessed = roomPlayersWhoGuessed.get(roomId);
+      if (playersWhoGuessed && playersWhoGuessed.has(previousSocketId)) {
+        playersWhoGuessed.delete(previousSocketId);
+        playersWhoGuessed.add(socket.id);
+        roomPlayersWhoGuessed.set(roomId, playersWhoGuessed);
+      }
+
       socketToRoom.set(socket.id, roomId);
       const playerKey = `${playerName}:${playerAvatar}`;
       playerSessionData.set(playerKey, { name: playerName, avatar: playerAvatar, roomId });
