@@ -45,6 +45,8 @@ export function useSpeechRecognition(
   const audioContextRef = useRef<AudioContext | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const accumulatedTranscriptRef = useRef<string>(''); // Store accumulated transcript
+  // Track whether stop() was intentionally invoked by user (manual stop)
+  const manualStopRequestedRef = useRef<boolean>(false);
 
   useEffect(() => {
     // Check if browser supports Speech Recognition
@@ -108,16 +110,19 @@ export function useSpeechRecognition(
     recognition.onend = () => {
       // Recognition ended (mobile browsers may auto-stop)
       setIsListening(false);
-      // If we have an accumulated final transcript, send it
+      // Only send result if user explicitly turned off mic via stop()
       try {
         const text = accumulatedTranscriptRef.current?.trim();
-        if (text && onResult) {
-          console.log('onend: Sending accumulated transcript:', text);
+        if (manualStopRequestedRef.current && text && onResult) {
+          console.log('onend (manual): Sending accumulated transcript:', text);
           onResult(text);
           accumulatedTranscriptRef.current = '';
         }
       } catch (e) {
         // swallow errors
+      } finally {
+        // reset manual flag regardless
+        manualStopRequestedRef.current = false;
       }
     };
 
@@ -169,15 +174,12 @@ export function useSpeechRecognition(
     if (isListening && recognitionRef.current) {
       try {
         console.log('Calling recognition.stop()');;
+        // mark that this end is manual
+        manualStopRequestedRef.current = true;
         recognitionRef.current.stop();
         setIsListening(false);
         
-        // Send accumulated transcript when mic stops
-        if (accumulatedTranscriptRef.current.trim() && onResult) {
-          console.log('Sending accumulated transcript:', accumulatedTranscriptRef.current);
-          onResult(accumulatedTranscriptRef.current);
-          accumulatedTranscriptRef.current = '';
-        }
+        // Do not emit here; rely on onend to fire and handle manual case
       } catch (error) {
         console.error('Error stopping speech recognition:', error);
       }
