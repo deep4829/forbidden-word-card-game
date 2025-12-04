@@ -30,4 +30,5 @@ export interface Room {
   currentCard: Card | null;
   gameStarted: boolean;
   roundInProgress: boolean;
+  maxRounds: number;
 }

@@ -21,6 +21,8 @@ export default function RoomPage() {
   const [shareMethod, setShareMethod] = useState<'copy' | 'link' | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
+  const [selectedRounds, setSelectedRounds] = useState<number>(10);
+  const ROUND_OPTIONS = [1, 2, 3, 5, 7, 10, 12, 15, 20];
 
   // Restore room data from localStorage on mount
   useEffect(() => {
@@ -29,6 +31,9 @@ export default function RoomPage() {
       try {
         const parsedRoom = JSON.parse(savedRoomData);
         setRoom(parsedRoom);
+        if (parsedRoom?.maxRounds) {
+          setSelectedRounds(parsedRoom.maxRounds);
+        }
         setIsLoading(false);
       } catch (e) {
         console.error('Failed to parse saved room data:', e);
@@ -53,6 +58,12 @@ export default function RoomPage() {
 
   // Compute invite URL
   const inviteUrl = getInviteUrl();
+
+  useEffect(() => {
+    if (room?.maxRounds) {
+      setSelectedRounds(room.maxRounds);
+    }
+  }, [room?.maxRounds]);
 
   const attemptRejoin = useCallback(() => {
     if (!roomId) {
@@ -90,6 +101,18 @@ export default function RoomPage() {
   }, [attemptRejoin]);
 
   const { play } = useSound();
+
+  const handleRoundsChange = (value: number) => {
+    const sanitized = Math.max(1, Math.min(20, Math.round(value)));
+    setSelectedRounds(sanitized);
+
+    if (!roomId || room?.maxRounds === sanitized) {
+      return;
+    }
+
+    try { play('click'); } catch (e) {}
+    socket.emit('update-round-settings', { roomId, maxRounds: sanitized });
+  };
 
   // Persist room data to localStorage
   useEffect(() => {
@@ -136,14 +159,20 @@ export default function RoomPage() {
       setIsLoading(false);
     };
 
+    const onRoundSettingsUpdated = (payload: { roomId: string; maxRounds: number }) => {
+      setSelectedRounds(payload.maxRounds);
+    };
+
     socket.on('room-updated', onRoomUpdated);
     socket.on('game-started', onGameStarted);
     socket.on('error', onError);
+    socket.on('round-settings-updated', onRoundSettingsUpdated);
 
     return () => {
       socket.off('room-updated', onRoomUpdated);
       socket.off('game-started', onGameStarted);
       socket.off('error', onError);
+       socket.off('round-settings-updated', onRoundSettingsUpdated);
     };
   }, [roomId, router]);
 
@@ -360,6 +389,48 @@ export default function RoomPage() {
         {error && (
           <div className="bg-red-50 border-2 border-red-200 rounded-lg sm:rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
             <p className="text-red-700 text-center font-medium text-sm sm:text-base">{error}</p>
+          </div>
+        )}
+
+        {room && isRoomCreator && !room.gameStarted && (
+          <div className="bg-white rounded-lg sm:rounded-2xl shadow-2xl p-4 sm:p-6 md:p-8 mb-4 sm:mb-6">
+            <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4">Game Settings</h3>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex-1">
+                <p className="text-sm sm:text-base text-gray-600 mb-2">Rounds to play</p>
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                  {ROUND_OPTIONS.map((value) => (
+                    <button
+                      key={value}
+                      onClick={() => handleRoundsChange(value)}
+                      disabled={room.maxRounds === value}
+                      className={`py-2 rounded-lg font-semibold text-sm transition-colors border-2 ${
+                        selectedRounds === value
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg'
+                          : 'bg-white text-gray-700 border-gray-200 hover:border-indigo-400'
+                      } ${room.maxRounds === value ? 'cursor-default opacity-80' : ''}`}
+                    >
+                      {value}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="w-full sm:w-auto">
+                <label htmlFor="customRounds" className="block text-sm font-medium text-gray-600 mb-2">
+                  Custom
+                </label>
+                <input
+                  id="customRounds"
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={selectedRounds}
+                  onChange={(e) => handleRoundsChange(Number(e.target.value))}
+                  className="w-full sm:w-28 px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none text-center"
+                />
+              </div>
+            </div>
+            <p className="text-xs sm:text-sm text-gray-500 mt-3">Max 20 rounds. Settings lock once the game starts.</p>
           </div>
         )}
 

@@ -103,6 +103,9 @@ const playerSessionData = new Map<string, { name: string; avatar: string; roomId
 // Allow players a short window to reconnect before being removed
 const RECONNECT_GRACE_PERIOD = 2 * 60 * 1000; // 2 minutes
 const reconnectTimeouts = new Map<string, NodeJS.Timeout>(); // playerKey -> timeout handle
+const DEFAULT_MAX_ROUNDS = 10;
+const MIN_ROUNDS = 1;
+const MAX_ROUNDS_LIMIT = 20;
 
 // NEW: Turn-based game flow tracking
 // Track whether it's the speaker's turn or guesser's turn
@@ -133,6 +136,7 @@ function createRoom(roomId: string, hostPlayer: Player): Room {
     currentCard: null,
     gameStarted: false,
     roundInProgress: false,
+    maxRounds: DEFAULT_MAX_ROUNDS,
   };
 }
 
@@ -241,6 +245,10 @@ async function startGame(room: Room): Promise<boolean> {
     return false;
   }
 
+  // Ensure max rounds is within supported range
+  const sanitizedMaxRounds = Math.max(MIN_ROUNDS, Math.min(MAX_ROUNDS_LIMIT, room.maxRounds ?? DEFAULT_MAX_ROUNDS));
+  room.maxRounds = sanitizedMaxRounds;
+
   // Initialize game state
   room.gameStarted = true;
   room.roundInProgress = false;
@@ -309,13 +317,17 @@ function handleClueSubmission(room: Room, clue: string): { valid: boolean; viola
 }
 
 // Helper function to end the current round
-function endRound(room: Room, speakerId: string, guesserId: string): { speakerBonus: number; guesserBonus: number } {
+function endRound(
+  room: Room,
+  speakerId: string,
+  guesserId: string | null
+): { speakerBonus: number; guesserBonus: number; gameOver: boolean; finishedRound: number; nextSpeakerId: string | null } {
   const clueCount = roomClueCount.get(room.id) || 0;
   const points = computePoints(clueCount);
 
   // Award base points to speaker and guesser
   const speaker = room.players.find((p) => p.id === speakerId);
-  const guesser = room.players.find((p) => p.id === guesserId);
+  const guesser = guesserId ? room.players.find((p) => p.id === guesserId) : undefined;
 
   let speakerBonus = 0;
   let guesserBonus = 0;
@@ -353,16 +365,33 @@ function endRound(room: Room, speakerId: string, guesserId: string): { speakerBo
     p.guessesUsed = 0;
   });
 
-  // Transition to next speaker (round-robin)
-  const currentSpeakerIndex = room.players.findIndex((p) => p.id === room.currentClueGiver);
-  const nextSpeakerIndex = (currentSpeakerIndex + 1) % room.players.length;
-  room.currentClueGiver = room.players[nextSpeakerIndex].id;
-
-  // Increment round number
   const currentRound = roomRounds.get(room.id) || 1;
-  roomRounds.set(room.id, currentRound + 1);
+  const maxRounds = Math.max(MIN_ROUNDS, Math.min(MAX_ROUNDS_LIMIT, room.maxRounds ?? DEFAULT_MAX_ROUNDS));
+  room.maxRounds = maxRounds;
 
-  return { speakerBonus, guesserBonus };
+  let gameOver = false;
+  let nextSpeakerId: string | null = null;
+
+  const currentSpeakerIndex = room.players.findIndex((p) => p.id === room.currentClueGiver);
+  if (currentRound >= maxRounds || room.players.length === 0) {
+    room.currentClueGiver = null;
+    room.currentCard = null;
+    room.gameStarted = false;
+    room.roundInProgress = false;
+    gameOver = true;
+    roomRounds.set(room.id, maxRounds);
+  } else {
+    const nextSpeakerIndex = room.players.length > 0 ? (currentSpeakerIndex + 1 + room.players.length) % room.players.length : -1;
+    if (nextSpeakerIndex >= 0) {
+      nextSpeakerId = room.players[nextSpeakerIndex].id;
+      room.currentClueGiver = nextSpeakerId;
+    } else {
+      room.currentClueGiver = null;
+    }
+    roomRounds.set(room.id, currentRound + 1);
+  }
+
+  return { speakerBonus, guesserBonus, gameOver, finishedRound: currentRound, nextSpeakerId };
 }
 
 io.on('connection', (socket) => {
@@ -573,6 +602,36 @@ io.on('connection', (socket) => {
     io.to(roomId).emit('room-updated', room);
 
     console.log(`Player ${socket.id} updated profile in room: ${roomId}`);
+  });
+
+  socket.on('update-round-settings', (data: { roomId: string; maxRounds: number }) => {
+    const { roomId, maxRounds } = data;
+    const room = getRoom(roomId);
+
+    if (!room) {
+      socket.emit('error', { message: 'Room not found' });
+      return;
+    }
+
+    const hostId = room.players[0]?.id;
+    if (socket.id !== hostId) {
+      socket.emit('error', { message: 'Only the host can change round settings' });
+      return;
+    }
+
+    if (room.gameStarted) {
+      socket.emit('error', { message: 'Cannot change rounds during an active game' });
+      return;
+    }
+
+    const sanitizedRounds = Math.max(MIN_ROUNDS, Math.min(MAX_ROUNDS_LIMIT, Math.round(maxRounds)));
+    room.maxRounds = sanitizedRounds;
+    roomRounds.set(roomId, 1);
+
+    io.to(roomId).emit('room-updated', room);
+    socket.emit('round-settings-updated', { roomId, maxRounds: sanitizedRounds });
+
+    console.log(`[round-settings] Room ${roomId} max rounds set to ${sanitizedRounds}`);
   });
 
   // Handle start-game event
@@ -797,22 +856,32 @@ io.on('connection', (socket) => {
       // Correct guess!
       const clueCount = roomClueCount.get(roomId) || 0;
       const points = computePoints(clueCount);
-      const targetWord = room.currentCard.mainWord;
+      const activeCard = room.currentCard;
+      const targetWord = activeCard.mainWord;
       const oldSpeakerId = room.currentClueGiver;
 
-      // Award points using endRound helper (this updates room.currentClueGiver to the next speaker)
-      let bonuses = { speakerBonus: 0, guesserBonus: 0 };
+      let roundOutcome = {
+        speakerBonus: 0,
+        guesserBonus: 0,
+        gameOver: false,
+        finishedRound: roomRounds.get(roomId) || 1,
+        nextSpeakerId: null as string | null,
+      };
+
       if (room.currentClueGiver) {
-        bonuses = endRound(room, room.currentClueGiver, socket.id);
+        roundOutcome = endRound(room, room.currentClueGiver, socket.id);
       }
 
-      // Now room.currentClueGiver is the NEW speaker
-      const newSpeakerId = room.currentClueGiver;
-
-      // Draw next card for the new speaker
-      const nextCard = await drawNextCard(room);
-      room.currentCard = nextCard;
-      console.log(`[socket] Drew next card for new speaker ${newSpeakerId}: ${nextCard?.id || 'null'}`);
+      const continueGame = !roundOutcome.gameOver;
+      if (continueGame) {
+        const nextCard = await drawNextCard(room);
+        room.currentCard = nextCard;
+        console.log(`[socket] Drew next card for new speaker ${roundOutcome.nextSpeakerId}: ${nextCard?.id || 'null'}`);
+      } else {
+        room.currentCard = null;
+        roomCluePhase.delete(roomId);
+        roomPlayersWhoGuessed.delete(roomId);
+      }
 
       // Broadcast correct guess result
       io.to(roomId).emit('guess-result', {
@@ -834,27 +903,39 @@ io.on('connection', (socket) => {
         guesserId: socket.id,
         clueCount,
         basePoints: points,
-        bonuses,
+        bonuses: { speakerBonus: roundOutcome.speakerBonus, guesserBonus: roundOutcome.guesserBonus },
         room,
+        roundNumber: roundOutcome.finishedRound,
+        nextRoundNumber: continueGame ? (roomRounds.get(room.id) || null) : null,
       });
 
-      // NEW: Reset turn-based flow for new round
-      roomCluePhase.set(roomId, 'speaker');
-      roomPlayersWhoGuessed.set(roomId, new Set());
+      if (continueGame) {
+        // Reset turn-based flow for new round
+        roomCluePhase.set(roomId, 'speaker');
+        roomPlayersWhoGuessed.set(roomId, new Set());
+      }
 
       // Emit final score-updated event
       io.to(roomId).emit('score-updated', {
         room,
       });
 
-      // Emit card-assigned to the new speaker after round ends
-      if (newSpeakerId && room.currentCard) {
-        console.log(`[socket] Emitting card-assigned to new speaker ${newSpeakerId} with card ${room.currentCard.id}`);
-        io.to(newSpeakerId).emit('card-assigned', {
+      if (continueGame && roundOutcome.nextSpeakerId && room.currentCard) {
+        console.log(`[socket] Emitting card-assigned to new speaker ${roundOutcome.nextSpeakerId} with card ${room.currentCard.id}`);
+        io.to(roundOutcome.nextSpeakerId).emit('card-assigned', {
           card: room.currentCard,
         });
+      } else if (!continueGame) {
+        const leaderboard = [...room.players].sort((a, b) => b.score - a.score);
+        io.to(roomId).emit('game-ended', {
+          room,
+          leaderboard,
+          totalRounds: room.maxRounds,
+          reason: 'max_rounds_reached',
+          finishedRound: roundOutcome.finishedRound,
+        });
       } else {
-        console.warn(`[socket] Could not emit card-assigned: speakerId=${newSpeakerId}, card=${room.currentCard?.id}`);
+        console.warn(`[socket] Could not emit card-assigned: speakerId=${roundOutcome.nextSpeakerId}, card=${room.currentCard?.id}`);
       }
 
       console.log(`Correct guess in room ${roomId}: "${guess}" by ${guesser.name}`);
@@ -900,38 +981,49 @@ io.on('connection', (socket) => {
       if (allGuessersExhausted) {
         console.log(`[socket] All guessers exhausted in room ${roomId}. Auto-advancing round...`);
 
-        // End round with no correct guess
+        const previousCard = room.currentCard;
         const oldSpeakerId = room.currentClueGiver;
-        endRound(room, room.currentClueGiver!, socket.id); // Use incorrect guesser for scoring
-        const newSpeakerId = room.currentClueGiver;
+        const roundOutcome = endRound(room, room.currentClueGiver!, socket.id);
+        const continueGame = !roundOutcome.gameOver;
 
-        // Draw next card for the new speaker
-        const nextCard = await drawNextCard(room);
-        room.currentCard = nextCard;
+        if (continueGame) {
+          const nextCard = await drawNextCard(room);
+          room.currentCard = nextCard;
+          roomCluePhase.set(roomId, 'speaker');
+          roomPlayersWhoGuessed.set(roomId, new Set());
+        } else {
+          room.currentCard = null;
+          roomCluePhase.delete(roomId);
+          roomPlayersWhoGuessed.delete(roomId);
+        }
 
-        // NEW: Reset turn-based flow for new round
-        roomCluePhase.set(roomId, 'speaker');
-        roomPlayersWhoGuessed.set(roomId, new Set());
-
-        // Broadcast round ended
         io.to(roomId).emit('round-ended', {
           success: false,
           reason: 'All guesses exhausted',
-          targetWord: room.currentCard?.mainWord, // Previous card
+          targetWord: previousCard?.mainWord,
           speakerId: oldSpeakerId,
           room,
+          roundNumber: roundOutcome.finishedRound,
+          nextRoundNumber: continueGame ? (roomRounds.get(room.id) || null) : null,
         });
 
-        // Emit score update
         io.to(roomId).emit('score-updated', {
           room,
         });
 
-        // Emit card to new speaker
-        if (newSpeakerId && room.currentCard) {
-          console.log(`[socket] Auto-advance: Emitting card to new speaker ${newSpeakerId}`);
-          io.to(newSpeakerId).emit('card-assigned', {
+        if (continueGame && roundOutcome.nextSpeakerId && room.currentCard) {
+          console.log(`[socket] Auto-advance: Emitting card to new speaker ${roundOutcome.nextSpeakerId}`);
+          io.to(roundOutcome.nextSpeakerId).emit('card-assigned', {
             card: room.currentCard,
+          });
+        } else if (!continueGame) {
+          const leaderboard = [...room.players].sort((a, b) => b.score - a.score);
+          io.to(roomId).emit('game-ended', {
+            room,
+            leaderboard,
+            totalRounds: room.maxRounds,
+            reason: 'max_rounds_reached',
+            finishedRound: roundOutcome.finishedRound,
           });
         }
       }
