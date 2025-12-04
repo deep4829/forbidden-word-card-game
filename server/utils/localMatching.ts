@@ -37,7 +37,7 @@ export function isPhoneticMatch(word1: string, word2: string): boolean {
   const normalized2 = normalize(word2);
   
   // Metaphone is good for English words
-  const metaphone = new natural.Metaphone();
+  const metaphone = new natural.metaphone();
   const code1 = metaphone.process(normalized1);
   const code2 = metaphone.process(normalized2);
   const match = code1 === code2;
@@ -57,7 +57,7 @@ export function isSoundexMatch(word1: string, word2: string): boolean {
   const normalized1 = normalize(word1);
   const normalized2 = normalize(word2);
   
-  const soundex = new natural.SoundEx();
+  const soundex = new natural.soundex();
   const code1 = soundex.process(normalized1);
   const code2 = soundex.process(normalized2);
   const match = code1 === code2;
