@@ -17,6 +17,7 @@ export interface Player {
   isReady: boolean;
   score: number;
   guessesUsed?: number;
+  isConnected?: boolean;
 }
 
 /**

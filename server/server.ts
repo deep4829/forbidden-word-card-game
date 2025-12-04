@@ -100,6 +100,10 @@ const CLEANUP_INTERVAL = 5 * 60 * 1000; // Check every 5 minutes
 const socketToRoom = new Map<string, string>();  // socketId -> roomId
 const playerSessionData = new Map<string, { name: string; avatar: string; roomId: string }>();  // playerId (name+avatar) -> session data
 
+// Allow players a short window to reconnect before being removed
+const RECONNECT_GRACE_PERIOD = 2 * 60 * 1000; // 2 minutes
+const reconnectTimeouts = new Map<string, NodeJS.Timeout>(); // playerKey -> timeout handle
+
 // NEW: Turn-based game flow tracking
 // Track whether it's the speaker's turn or guesser's turn
 const roomCluePhase = new Map<string, 'speaker' | 'guessing'>();
@@ -116,6 +120,7 @@ function createPlayer(socketId: string, name: string, avatar: string = '🎮'): 
     isReady: false,
     score: 0,
     guessesUsed: 0,
+    isConnected: true,
   };
 }
 
@@ -165,9 +170,32 @@ function addPlayerToRoom(room: Room, player: Player): boolean {
 
 // Helper function to remove player from room
 function removePlayerFromRoom(room: Room, playerId: string): boolean {
-  const initialLength = room.players.length;
-  room.players = room.players.filter((p) => p.id !== playerId);
-  return room.players.length < initialLength;
+  const index = room.players.findIndex((p) => p.id === playerId);
+  if (index === -1) {
+    return false;
+  }
+
+  const [removedPlayer] = room.players.splice(index, 1);
+
+  if (room.currentClueGiver === playerId) {
+    if (room.players.length > 0) {
+      const nextIndex = index % room.players.length;
+      room.currentClueGiver = room.players[nextIndex].id;
+    } else {
+      room.currentClueGiver = null;
+      room.currentCard = null;
+      room.gameStarted = false;
+      room.roundInProgress = false;
+    }
+  }
+
+  // Clean up session tracking if this was a permanent removal
+  if (removedPlayer) {
+    const playerKey = `${removedPlayer.name}:${removedPlayer.avatar}`;
+    playerSessionData.delete(playerKey);
+  }
+
+  return true;
 }
 
 // Helper function to update room activity timestamp
@@ -438,9 +466,19 @@ io.on('connection', (socket) => {
     
     if (existingPlayer) {
       const previousSocketId = existingPlayer.id;
+      const playerKey = `${playerName}:${playerAvatar}`;
+
       // Reconnection case: update the socket ID and rejoin
       console.log(`[rejoin] Player ${playerName} reconnecting. Old socket: ${previousSocketId}, New socket: ${socket.id}`);
       existingPlayer.id = socket.id;  // Update socket ID
+      existingPlayer.isConnected = true;
+
+      // Cancel any pending removal for this player
+      const pendingTimeout = reconnectTimeouts.get(playerKey);
+      if (pendingTimeout) {
+        clearTimeout(pendingTimeout);
+        reconnectTimeouts.delete(playerKey);
+      }
 
       // If this player is the current speaker, update the room's reference
       if (room.currentClueGiver === previousSocketId) {
@@ -455,13 +493,29 @@ io.on('connection', (socket) => {
         roomPlayersWhoGuessed.set(roomId, playersWhoGuessed);
       }
 
+      socketToRoom.delete(previousSocketId);
       socketToRoom.set(socket.id, roomId);
-      const playerKey = `${playerName}:${playerAvatar}`;
       playerSessionData.set(playerKey, { name: playerName, avatar: playerAvatar, roomId });
       
       socket.join(roomId);
       socket.emit('room-joined', { roomId, room });
       io.to(roomId).emit('room-updated', room);
+
+      // Provide full game state snapshot to the reconnecting client
+      socket.emit('game-state-synced', {
+        room,
+        roundNumber: roomRounds.get(roomId) || 1,
+        currentClueGiver: room.currentClueGiver,
+        phase: roomCluePhase.get(roomId) || 'speaker',
+        clueCount: roomClueCount.get(roomId) || 0,
+        playersWhoGuessed: Array.from(roomPlayersWhoGuessed.get(roomId) || new Set()),
+        timestamp: Date.now(),
+      });
+
+      if (room.currentClueGiver === socket.id && room.currentCard) {
+        io.to(socket.id).emit('card-assigned', { card: room.currentCard });
+      }
+
       console.log(`Player ${playerName} reconnected to room: ${roomId}`);
       return;
     }
@@ -888,23 +942,70 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`);
 
-    const room = getRoomBySocketId(socket.id);
-    if (room) {
-      const roomId = room.id;
-      const removed = removePlayerFromRoom(room, socket.id);
+    const roomId = socketToRoom.get(socket.id);
+    socketToRoom.delete(socket.id);
+
+    const room = roomId ? getRoom(roomId) : getRoomBySocketId(socket.id);
+    if (!room || !roomId) {
+      return;
+    }
+
+    const player = room.players.find((p) => p.id === socket.id);
+    if (!player) {
+      return;
+    }
+
+    player.isConnected = false;
+
+    const playerKey = `${player.name}:${player.avatar}`;
+
+    const timeout = setTimeout(() => {
+      const activeRoom = getRoom(roomId);
+      if (!activeRoom) {
+        reconnectTimeouts.delete(playerKey);
+        return;
+      }
+
+      const targetIndex = activeRoom.players.findIndex((p) => p.name === player.name && p.avatar === player.avatar);
+      if (targetIndex === -1) {
+        reconnectTimeouts.delete(playerKey);
+        return;
+      }
+
+      const targetPlayer = activeRoom.players[targetIndex];
+      if (targetPlayer.isConnected) {
+        reconnectTimeouts.delete(playerKey);
+        return;
+      }
+
+      const removedId = targetPlayer.id;
+      const removed = removePlayerFromRoom(activeRoom, removedId);
 
       if (removed) {
-        // Delete room if empty
-        if (room.players.length === 0) {
+        if (activeRoom.players.length === 0) {
           rooms.delete(roomId);
-          console.log(`Room ${roomId} deleted (empty)`);
+          roomDecks.delete(roomId);
+          roomRounds.delete(roomId);
+          roomClueCount.delete(roomId);
+          roomCluesGiven.delete(roomId);
+          roomGuessesGiven.delete(roomId);
+          roomCluePhase.delete(roomId);
+          roomPlayersWhoGuessed.delete(roomId);
+          roomActivity.delete(roomId);
+          console.log(`Room ${roomId} deleted after grace period (empty)`);
         } else {
-          // Broadcast updated room to remaining players
-          io.to(roomId).emit('room-updated', room);
-          console.log(`Player ${socket.id} removed from room ${roomId}`);
+          io.to(roomId).emit('room-updated', activeRoom);
+          console.log(`Player ${player.name} removed from room ${roomId} after grace period`);
         }
       }
-    }
+
+      reconnectTimeouts.delete(playerKey);
+    }, RECONNECT_GRACE_PERIOD);
+
+    reconnectTimeouts.set(playerKey, timeout);
+
+    io.to(roomId).emit('room-updated', room);
+    console.log(`[disconnect] Player ${player.name} temporarily disconnected from room ${roomId}. Waiting for reconnection up to ${RECONNECT_GRACE_PERIOD / 1000}s`);
   });
 });
 
