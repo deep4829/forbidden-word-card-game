@@ -50,13 +50,15 @@ export default function GamePage() {
   const [feedbackType, setFeedbackType] = useState<'success' | 'error' | 'info'>('info');
   const [roundActive, setRoundActive] = useState(false);
   const [useManualInput, setUseManualInput] = useState(false);
+  const [role, setRole] = useState<'speaker' | 'guesser' | null>(null);
   // NEW: Track game phase (speaker giving clue or guessers guessing)
   // Default to 'speaker' to avoid premature "waiting" state before server event arrives
   const [gamePhase, setGamePhase] = useState<'speaker' | 'guessing' | null>('speaker');
   // NEW: Track if current player has already guessed this clue
   const [playerHasGuessed, setPlayerHasGuessed] = useState(false);
 
-  const isSpeaker = room?.currentClueGiver === currentPlayerId;
+  const actualSpeaker = room?.currentClueGiver === currentPlayerId;
+  const isSpeaker = role ? role === 'speaker' : !!actualSpeaker;
 
   const attemptRejoin = useCallback((): boolean => {
     if (!roomId) return false;
@@ -86,11 +88,13 @@ export default function GamePage() {
         roundNumber,
         playerHasGuessed,
         gamePhase,
+        role: role || (currentCard ? 'speaker' : 'guesser'),
+        playerId: currentPlayerId,
         timestamp: new Date().getTime(),
       };
       localStorage.setItem(`game_${roomId}`, JSON.stringify(gameState));
     }
-  }, [room, roomId, currentCard, clueHistory, roundNumber, playerHasGuessed, gamePhase]);
+  }, [room, roomId, currentCard, clueHistory, roundNumber, playerHasGuessed, gamePhase, role, currentPlayerId]);
 
   // Restore game state from localStorage on mount
   useEffect(() => {
@@ -104,6 +108,13 @@ export default function GamePage() {
         setRoundNumber(parsed.roundNumber);
         setPlayerHasGuessed(parsed.playerHasGuessed);
         setGamePhase(parsed.gamePhase || 'speaker');
+        if (parsed.role === 'speaker' || parsed.role === 'guesser') {
+          setRole(parsed.role);
+        } else if (parsed.currentCard) {
+          setRole('speaker');
+        } else {
+          setRole('guesser');
+        }
         console.log('✅ Game state restored from localStorage:', {
           room: parsed.room,
           roundNumber: parsed.roundNumber,
@@ -134,6 +145,20 @@ export default function GamePage() {
   useEffect(() => {
     roomIdRef.current = roomId;
   }, [roomId]);
+
+  useEffect(() => {
+    if (!room || !currentPlayerId) {
+      return;
+    }
+
+    const playerInRoom = room.players.some((p) => p.id === currentPlayerId);
+    if (!playerInRoom) {
+      return;
+    }
+
+    const newRole: 'speaker' | 'guesser' = room.currentClueGiver === currentPlayerId ? 'speaker' : 'guesser';
+    setRole((prev) => (prev !== newRole ? newRole : prev));
+  }, [room, currentPlayerId]);
 
   // Refs for game phase and player guess state
   const gamePhaseRef = useRef<'speaker' | 'guessing' | null>('speaker');
@@ -263,6 +288,10 @@ export default function GamePage() {
       // Sync whether current player has guessed
       const playerHasGuessedSync = data.playersWhoGuessed?.includes(currentPlayerId) || false;
       setPlayerHasGuessed(playerHasGuessedSync);
+      if (currentPlayerId) {
+        const resolvedRole: 'speaker' | 'guesser' = data.currentClueGiver === currentPlayerId ? 'speaker' : 'guesser';
+        setRole(resolvedRole);
+      }
       
       // Reset clue history based on server state
       // The clue history should be rebuilt from room data or cleared to sync with server
@@ -300,6 +329,7 @@ export default function GamePage() {
     const onCardAssigned = (data: { card: Card }) => {
       console.log('Card assigned:', data.card);
       setCurrentCard(data.card);
+      setRole('speaker');
     };
 
     // Clue broadcast event
@@ -397,6 +427,10 @@ export default function GamePage() {
       setRoundNumber(data.roundNumber);
       // NEW: Use phase from server if provided, otherwise default to speaker
       setGamePhase(data.phase || 'speaker');
+      if (currentPlayerId) {
+        const resolvedRole: 'speaker' | 'guesser' = data.currentClueGiver === currentPlayerId ? 'speaker' : 'guesser';
+        setRole(resolvedRole);
+      }
       // Ensure local state resets at round start
       setPlayerHasGuessed(false);
       setRoundActive(false);
