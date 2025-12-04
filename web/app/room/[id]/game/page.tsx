@@ -536,9 +536,9 @@ export default function GamePage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6">
           {/* Main Content Area */}
-          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+          <div className="w-full space-y-4 sm:space-y-6">
             {isSpeaker ? (
               /* Speaker View */
               <>
@@ -827,8 +827,8 @@ export default function GamePage() {
                   </div>
 
                   {/* Guess Form + Mic */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <form onSubmit={handleGuessSubmit} className="space-y-4 order-2 md:order-1">
+                  <div className="space-y-4 pb-32 sm:pb-0">
+                    <form onSubmit={handleGuessSubmit} className="space-y-4">
                       <input
                         type="text"
                         value={guessInput}
@@ -849,7 +849,7 @@ export default function GamePage() {
                     </form>
 
                     {/* Guesser Mic */}
-                    <div className="space-y-3 order-1 md:order-2">
+                    <div className="space-y-3">
                       <p className="text-center text-gray-800 font-bold">Or speak your guess 🎤</p>
                       {!isSupported ? (
                         <div className="text-center py-3 text-red-700 font-bold">Speech not supported</div>
@@ -877,7 +877,7 @@ export default function GamePage() {
                             }}
                             disabled={guessesUsed >= maxGuesses || gamePhase !== 'guessing' || playerHasGuessed}
                             aria-label={isListening ? 'Stop recording' : 'Start recording'}
-                            className={`w-24 h-24 rounded-full flex items-center justify-center text-4xl transition-all transform shadow-2xl ${
+                            className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full flex items-center justify-center text-5xl sm:text-6xl transition-all transform shadow-2xl ${
                               guessesUsed >= maxGuesses || gamePhase !== 'guessing' || playerHasGuessed
                                 ? 'bg-gray-400 cursor-not-allowed'
                                 : isListening
@@ -903,7 +903,7 @@ export default function GamePage() {
           </div>
 
           {/* Floating Controls - Always accessible (speaker & guesser) */}
-          <div className="fixed bottom-6 right-6 z-[1000] space-y-3 pointer-events-auto">
+          <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-[1000] space-y-3 pointer-events-auto">
             {/* Speaker floating start round */}
             {isSpeaker && !roundActive && currentCard && (
               <button
@@ -950,8 +950,8 @@ export default function GamePage() {
             )}
           </div>
 
-          {/* Sidebar - Player Details */}
-          <div className="space-y-4 sm:space-y-6">
+          {/* Sidebar - Player Details - Now full-width on mobile */}
+          <div className="col-span-1 w-full space-y-4 sm:space-y-6">
             <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-5 sm:p-6">
               <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Players</h3>
               <div className="space-y-3">
