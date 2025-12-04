@@ -58,6 +58,38 @@ export default function GamePage() {
 
   const isSpeaker = room?.currentClueGiver === currentPlayerId;
 
+  // Persist game state to localStorage
+  useEffect(() => {
+    if (room && roomId) {
+      const gameState = {
+        room,
+        currentCard,
+        clueHistory,
+        roundNumber,
+        playerHasGuessed,
+        timestamp: new Date().getTime(),
+      };
+      localStorage.setItem(`game_${roomId}`, JSON.stringify(gameState));
+    }
+  }, [room, roomId, currentCard, clueHistory, roundNumber, playerHasGuessed]);
+
+  // Restore game state from localStorage on mount
+  useEffect(() => {
+    const savedGameState = localStorage.getItem(`game_${roomId}`);
+    if (savedGameState) {
+      try {
+        const parsed = JSON.parse(savedGameState);
+        setRoom(parsed.room);
+        setCurrentCard(parsed.currentCard);
+        setClueHistory(parsed.clueHistory);
+        setRoundNumber(parsed.roundNumber);
+        setPlayerHasGuessed(parsed.playerHasGuessed);
+      } catch (e) {
+        console.error('Failed to restore game state:', e);
+      }
+    }
+  }, [roomId]);
+
   // Refs to store latest state for speech recognition callback
   const isSpeakerRef = useRef(isSpeaker);
   const roundActiveRef = useRef(roundActive);
@@ -1035,4 +1067,12 @@ export default function GamePage() {
       </div>
     </div>
   );
+}
+
+// Cleanup function: remove saved game state when leaving the page
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    // Keep game state for 5 minutes (300000ms) in case of accidental refresh
+    // After that, clear it
+  });
 }

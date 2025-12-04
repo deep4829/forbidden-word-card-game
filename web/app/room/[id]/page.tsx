@@ -22,6 +22,20 @@ export default function RoomPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
 
+  // Restore room data from localStorage on mount
+  useEffect(() => {
+    const savedRoomData = localStorage.getItem(`room_${roomId}`);
+    if (savedRoomData) {
+      try {
+        const parsedRoom = JSON.parse(savedRoomData);
+        setRoom(parsedRoom);
+        setIsLoading(false);
+      } catch (e) {
+        console.error('Failed to parse saved room data:', e);
+      }
+    }
+  }, [roomId]);
+
   // Get the invite URL based on deployment environment
   const getInviteUrl = () => {
     if (typeof window === 'undefined') return '';
@@ -57,6 +71,28 @@ export default function RoomPage() {
   }, []);
 
   const { play } = useSound();
+
+  // Persist room data to localStorage
+  useEffect(() => {
+    if (room && roomId) {
+      localStorage.setItem(`room_${roomId}`, JSON.stringify(room));
+    }
+  }, [room, roomId]);
+
+  // Clean up localStorage when game starts (successful transition to game page)
+  useEffect(() => {
+    const onGameStarted = (data: any) => {
+      // Clear room data after successful game start
+      setTimeout(() => {
+        localStorage.removeItem(`room_${roomId}`);
+      }, 500);
+    };
+
+    socket.on('game-started', onGameStarted);
+    return () => {
+      socket.off('game-started', onGameStarted);
+    };
+  }, [roomId]);
 
   // Socket event listeners
   useEffect(() => {
