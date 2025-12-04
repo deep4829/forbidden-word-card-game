@@ -131,8 +131,19 @@ export default function RoomPage() {
   // Request room data on mount
   useEffect(() => {
     if (roomId && socket.connected) {
-      console.log('Requesting room data for:', roomId);
-      socket.emit('get-room', roomId);
+      // Get player info from localStorage
+      const playerName = localStorage.getItem('playerName');
+      const playerAvatar = localStorage.getItem('playerAvatar');
+      
+      if (playerName && playerAvatar) {
+        // First try to join the room (in case of reconnection)
+        console.log('Attempting to rejoin room:', roomId);
+        socket.emit('join-room', { roomId, playerName, playerAvatar });
+      } else {
+        // Fall back to just requesting room data
+        console.log('Requesting room data for:', roomId);
+        socket.emit('get-room', roomId);
+      }
     }
 
     // Set loading to false after a timeout if no response
@@ -146,6 +157,23 @@ export default function RoomPage() {
 
     return () => {
       clearTimeout(timeout);
+    };
+  }, [roomId]);
+
+  // Keep room alive by sending periodic pings
+  useEffect(() => {
+    if (!roomId) return;
+
+    // Send keep-alive ping every 5 minutes
+    const keepAliveInterval = setInterval(() => {
+      if (socket.connected) {
+        socket.emit('get-room', roomId);
+        console.log(`[keep-alive] Pinged room ${roomId}`);
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => {
+      clearInterval(keepAliveInterval);
     };
   }, [roomId]);
 

@@ -91,6 +91,15 @@ const roomCluesGiven = new Map<string, Set<string>>();
 // Store all guesses made in current round per room (for duplicate prevention)
 const roomGuessesGiven = new Map<string, Set<string>>();
 
+// Track room creation and last activity time (30 minutes timeout)
+const roomActivity = new Map<string, number>();
+const ROOM_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+const CLEANUP_INTERVAL = 5 * 60 * 1000; // Check every 5 minutes
+
+// NEW: Track socket to room mapping for reconnections
+const socketToRoom = new Map<string, string>();  // socketId -> roomId
+const playerSessionData = new Map<string, { name: string; avatar: string; roomId: string }>();  // playerId (name+avatar) -> session data
+
 // NEW: Turn-based game flow tracking
 // Track whether it's the speaker's turn or guesser's turn
 const roomCluePhase = new Map<string, 'speaker' | 'guessing'>();
@@ -160,6 +169,42 @@ function removePlayerFromRoom(room: Room, playerId: string): boolean {
   room.players = room.players.filter((p) => p.id !== playerId);
   return room.players.length < initialLength;
 }
+
+// Helper function to update room activity timestamp
+function updateRoomActivity(roomId: string) {
+  roomActivity.set(roomId, Date.now());
+}
+
+// Helper function to clean up expired rooms
+function cleanupExpiredRooms() {
+  const now = Date.now();
+  let cleanedCount = 0;
+
+  for (const [roomId, lastActivity] of roomActivity.entries()) {
+    if (now - lastActivity > ROOM_TIMEOUT) {
+      console.log(`[cleanup] Removing expired room: ${roomId}`);
+      
+      // Clean up all maps related to this room
+      rooms.delete(roomId);
+      roomDecks.delete(roomId);
+      roomRounds.delete(roomId);
+      roomClueCount.delete(roomId);
+      roomCluesGiven.delete(roomId);
+      roomGuessesGiven.delete(roomId);
+      roomCluePhase.delete(roomId);
+      roomPlayersWhoGuessed.delete(roomId);
+      roomActivity.delete(roomId);
+      
+      cleanedCount++;
+    }
+  }
+
+  if (cleanedCount > 0) {
+    console.log(`[cleanup] Cleaned up ${cleanedCount} expired rooms`);
+  }
+}
+
+// Helper function to remove player from room
 
 // Helper function to start game
 async function startGame(room: Room): Promise<boolean> {
@@ -314,6 +359,13 @@ io.on('connection', (socket) => {
     const room = createRoom(roomId, player);
 
     rooms.set(roomId, room);
+    updateRoomActivity(roomId);  // Track room creation time
+    
+    // Store socket-to-room mapping and player session data
+    socketToRoom.set(socket.id, roomId);
+    const playerKey = `${playerName}:${playerAvatar}`;
+    playerSessionData.set(playerKey, { name: playerName, avatar: playerAvatar, roomId });
+    
     socket.join(roomId);
 
     console.log(`[create-room] Emitting room-created event to socket ${socket.id} for room ${roomId}`);
@@ -327,6 +379,7 @@ io.on('connection', (socket) => {
   socket.on('get-room', (roomId: string) => {
     const room = getRoom(roomId);
     if (room) {
+      updateRoomActivity(roomId);  // Update last activity
       socket.emit('room-updated', room);
     } else {
       socket.emit('error', { message: 'Room not found' });
@@ -343,14 +396,39 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Add player to room using helper function
+    updateRoomActivity(roomId);  // Update last activity
+
+    // Check if a player with this name and avatar already exists in the room (reconnection case)
+    const existingPlayer = room.players.find((p) => p.name === playerName && p.avatar === playerAvatar);
+    
+    if (existingPlayer) {
+      // Reconnection case: update the socket ID and rejoin
+      console.log(`[rejoin] Player ${playerName} reconnecting. Old socket: ${existingPlayer.id}, New socket: ${socket.id}`);
+      existingPlayer.id = socket.id;  // Update socket ID
+      socketToRoom.set(socket.id, roomId);
+      const playerKey = `${playerName}:${playerAvatar}`;
+      playerSessionData.set(playerKey, { name: playerName, avatar: playerAvatar, roomId });
+      
+      socket.join(roomId);
+      socket.emit('room-joined', { roomId, room });
+      io.to(roomId).emit('room-updated', room);
+      console.log(`Player ${playerName} reconnected to room: ${roomId}`);
+      return;
+    }
+
+    // New player joining
     const player = createPlayer(socket.id, playerName, playerAvatar);
     const added = addPlayerToRoom(room, player);
 
     if (!added) {
-      socket.emit('error', { message: 'You are already in this room' });
+      socket.emit('error', { message: 'Failed to add player to room' });
       return;
     }
+
+    // Store socket-to-room mapping and player session data
+    socketToRoom.set(socket.id, roomId);
+    const playerKey = `${playerName}:${playerAvatar}`;
+    playerSessionData.set(playerKey, { name: playerName, avatar: playerAvatar, roomId });
 
     socket.join(roomId);
     socket.emit('room-joined', { roomId, room });
@@ -368,6 +446,8 @@ io.on('connection', (socket) => {
       socket.emit('error', { message: 'Room not found' });
       return;
     }
+
+    updateRoomActivity(roomId);  // Update last activity
 
     // Find the player in the room
     const player = room.players.find((p) => p.id === socket.id);
@@ -780,6 +860,13 @@ io.on('connection', (socket) => {
 
 httpServer.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+  
+  // Start cleanup interval for expired rooms
+  setInterval(() => {
+    cleanupExpiredRooms();
+  }, CLEANUP_INTERVAL);
+  
+  console.log(`Room cleanup scheduled every ${CLEANUP_INTERVAL / 1000 / 60} minutes (timeout: ${ROOM_TIMEOUT / 1000 / 60} minutes)`);
 });
 
 // Graceful error handling
