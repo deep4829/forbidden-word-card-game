@@ -928,6 +928,7 @@ io.on('connection', (socket) => {
       } else if (!continueGame) {
         const leaderboard = [...room.players].sort((a, b) => b.score - a.score);
         io.to(roomId).emit('game-ended', {
+          roomId,
           room,
           leaderboard,
           totalRounds: room.maxRounds,
@@ -1019,6 +1020,7 @@ io.on('connection', (socket) => {
         } else if (!continueGame) {
           const leaderboard = [...room.players].sort((a, b) => b.score - a.score);
           io.to(roomId).emit('game-ended', {
+            roomId,
             room,
             leaderboard,
             totalRounds: room.maxRounds,

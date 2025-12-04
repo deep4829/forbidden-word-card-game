@@ -38,6 +38,7 @@ export default function GamePage() {
   const params = useParams();
   const router = useRouter();
   const roomId = params.id as string;
+  const resultsStorageKey = `game_results_${roomId}`;
 
   const [room, setRoom] = useState<Room | null>(null);
   const [currentPlayerId, setCurrentPlayerId] = useState<string>('');
@@ -427,6 +428,11 @@ export default function GamePage() {
       setRoundNumber(data.roundNumber);
       // NEW: Use phase from server if provided, otherwise default to speaker
       setGamePhase(data.phase || 'speaker');
+      try {
+        localStorage.removeItem(resultsStorageKey);
+      } catch (e) {
+        // ignore storage errors
+      }
       if (currentPlayerId) {
         const resolvedRole: 'speaker' | 'guesser' = data.currentClueGiver === currentPlayerId ? 'speaker' : 'guesser';
         setRole(resolvedRole);
@@ -461,6 +467,45 @@ export default function GamePage() {
       showFeedback(data.message, 'error');
     };
 
+    const onGameEnded = (data: {
+      roomId: string;
+      room: Room;
+      leaderboard: Player[];
+      totalRounds: number;
+      reason: string;
+      finishedRound: number;
+    }) => {
+      console.log('🏁 Game ended payload:', data);
+
+      setRoom(data.room);
+      setGamePhase(null);
+      setPlayerHasGuessed(false);
+      setRoundActive(false);
+      setRole(null);
+      setClueHistory([]);
+      setCurrentCard(null);
+      stopRef.current();
+
+      try {
+        const payload = {
+          room: data.room,
+          leaderboard: data.leaderboard,
+          totalRounds: data.totalRounds,
+          reason: data.reason,
+          finishedRound: data.finishedRound,
+          timestamp: Date.now(),
+        };
+        localStorage.setItem(resultsStorageKey, JSON.stringify(payload));
+        localStorage.removeItem(`game_${roomId}`);
+      } catch (e) {
+        console.warn('Failed to persist game results:', e);
+      }
+
+      if (data.roomId === roomId) {
+        router.push(`/room/${roomId}/results`);
+      }
+    };
+
     socket.on('room-updated', onRoomUpdated);
     socket.on('game-state-synced', onGameStateSynced);
     socket.on('card-assigned', onCardAssigned);
@@ -472,6 +517,7 @@ export default function GamePage() {
     socket.on('game-started', onGameStarted);
     socket.on('phase-changed', onPhaseChanged);
     socket.on('error', onError);
+    socket.on('game-ended', onGameEnded);
     
     console.log('🔗 Socket listeners registered for room:', roomId, 'player:', currentPlayerId);
 
@@ -487,8 +533,9 @@ export default function GamePage() {
       socket.off('game-started', onGameStarted);
       socket.off('phase-changed', onPhaseChanged);
       socket.off('error', onError);
+      socket.off('game-ended', onGameEnded);
     };
-  }, [roomId, currentPlayerId, clueHistory.length]);
+  }, [roomId, currentPlayerId, clueHistory.length, router, resultsStorageKey]);
 
   // Request initial room data when page loads (or when dependencies change)
   useEffect(() => {
