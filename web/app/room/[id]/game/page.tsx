@@ -58,6 +58,24 @@ export default function GamePage() {
 
   const isSpeaker = room?.currentClueGiver === currentPlayerId;
 
+  const attemptRejoin = useCallback((): boolean => {
+    if (!roomId) return false;
+    if (typeof window === 'undefined') return false;
+
+    const playerName = localStorage.getItem('playerName');
+    const playerAvatar = localStorage.getItem('playerAvatar');
+
+    if (playerName && playerAvatar) {
+      console.log('Attempting auto-rejoin on game page:', { roomId, playerName });
+      socket.emit('join-room', { roomId, playerName, playerAvatar });
+      return true;
+    }
+
+    console.log('No stored player info found, requesting room data:', roomId);
+    socket.emit('get-room', roomId);
+    return false;
+  }, [roomId]);
+
   // Persist game state to localStorage
   useEffect(() => {
     if (room && roomId) {
@@ -184,21 +202,27 @@ export default function GamePage() {
     onError: handleSpeechError,
   });
 
-  // Set current player ID when socket connects
+  // Set current player ID when socket connects and attempt auto-rejoin
   useEffect(() => {
-    if (socket.connected) {
+    if (!roomId) return;
+
+    const handleConnect = () => {
       setCurrentPlayerId(socket.id || '');
+      const rejoined = attemptRejoin();
+      if (!rejoined) {
+        socket.emit('get-game-state', roomId);
+      }
+    };
+
+    if (socket.connected) {
+      handleConnect();
     }
 
-    const onConnect = () => {
-      setCurrentPlayerId(socket.id || '');
-    };
-
-    socket.on('connect', onConnect);
+    socket.on('connect', handleConnect);
     return () => {
-      socket.off('connect', onConnect);
+      socket.off('connect', handleConnect);
     };
-  }, []);
+  }, [roomId, attemptRejoin]);
 
   // Create refs for latest state values
   const isListeningRef = useRef(isListening);
@@ -432,16 +456,21 @@ export default function GamePage() {
     };
   }, [roomId, currentPlayerId, clueHistory.length]);
 
-  // Request initial room data when page loads
+  // Request initial room data when page loads (or when dependencies change)
   useEffect(() => {
-    if (roomId && socket.connected) {
-      console.log('🔗 Socket connected, requesting game state for game page:', roomId);
-      // Request full game state sync (includes room, round, phase, clue count, etc)
-      socket.emit('get-game-state', roomId);
-    } else {
+    if (!roomId) return;
+
+    if (!socket.connected) {
       console.warn('Socket not ready - connected:', socket.connected, 'roomId:', roomId);
+      return;
     }
-  }, [roomId]);
+
+    const rejoined = attemptRejoin();
+    if (!rejoined) {
+      console.log('🔗 Fetching game state for game page:', roomId);
+      socket.emit('get-game-state', roomId);
+    }
+  }, [roomId, attemptRejoin]);
 
   const showFeedback = (message: string, type: 'success' | 'error' | 'info') => {
     setFeedback(message);
