@@ -11,6 +11,11 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 let supabaseClient: ReturnType<typeof createClient> | null = null;
+let cachedCards: Card[] | null = null;
+let cacheExpiresAt = 0;
+
+const DEFAULT_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const cacheTtlMs = Number(process.env.CARD_CACHE_TTL_MS || DEFAULT_CACHE_TTL_MS);
 
 function initSupabase() {
   if (supabaseClient) {
@@ -49,7 +54,7 @@ export async function fetchAllCards(): Promise<Card[]> {
   try {
     const { data, error } = await supabase
       .from('cards')
-      .select('*');
+      .select('id, main_word, forbidden_words');
 
     if (error) {
       console.error('Supabase error fetching cards:', error);
@@ -92,7 +97,18 @@ export function shuffleArray<T>(array: T[]): T[] {
  * @returns Shuffled array of cards
  */
 export async function loadAndShuffleDeck(): Promise<Card[]> {
-  const cards = await fetchAllCards();
+  const now = Date.now();
+
+  if (!cachedCards || now >= cacheExpiresAt) {
+    const cards = await fetchAllCards();
+    cachedCards = cards;
+    cacheExpiresAt = now + cacheTtlMs;
+    if (process.env.NODE_ENV !== 'test') {
+      console.log(`[supabase] Refreshed card cache with ${cards.length} cards (TTL ${cacheTtlMs}ms)`);
+    }
+  }
+
+  const cards = cachedCards;
   return shuffleArray(cards);
 }
 
@@ -101,12 +117,11 @@ export async function loadAndShuffleDeck(): Promise<Card[]> {
  * @returns A random card
  */
 export async function getRandomCard(): Promise<Card> {
-  const cards = await fetchAllCards();
+  const cards = await loadAndShuffleDeck();
   if (cards.length === 0) {
     throw new Error('No cards available in Supabase');
   }
-  const randomIndex = Math.floor(Math.random() * cards.length);
-  return cards[randomIndex];
+  return cards[Math.floor(Math.random() * cards.length)];
 }
 
 /**
@@ -115,10 +130,22 @@ export async function getRandomCard(): Promise<Card> {
  * @returns Array of random cards
  */
 export async function getRandomCards(count: number): Promise<Card[]> {
-  const cards = await fetchAllCards();
-  if (cards.length === 0) {
+  const shuffled = await loadAndShuffleDeck();
+  if (shuffled.length === 0) {
     throw new Error('No cards available in Supabase');
   }
-  const shuffled = shuffleArray(cards);
   return shuffled.slice(0, Math.min(count, shuffled.length));
+}
+
+export function clearCardCache() {
+  cachedCards = null;
+  cacheExpiresAt = 0;
+}
+
+export async function warmCardCache(): Promise<void> {
+  try {
+    await loadAndShuffleDeck();
+  } catch (error) {
+    console.warn('[supabase] Failed to warm card cache:', error);
+  }
 }

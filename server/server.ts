@@ -9,7 +9,7 @@ import * as path from 'path';
 import { Server } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
 import { Room, Player, Card } from './types/game';
-import { loadAndShuffleDeck } from './lib/supabase';
+import { loadAndShuffleDeck, warmCardCache } from './lib/supabase';
 import { checkForbidden, normalize } from './utils/forbiddenCheck';
 import { computePoints } from './utils/scoring';
 import { isMatchingGuess } from './utils/compareWords';
@@ -1112,6 +1112,8 @@ httpServer.listen(PORT, () => {
   }, CLEANUP_INTERVAL);
   
   console.log(`Room cleanup scheduled every ${CLEANUP_INTERVAL / 1000 / 60} minutes (timeout: ${ROOM_TIMEOUT / 1000 / 60} minutes)`);
+
+  warmCardCache();
 });
 
 // Graceful error handling
