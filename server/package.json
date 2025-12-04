@@ -30,9 +30,7 @@
   "devDependencies": {
     "@types/express": "^5.0.5",
     "@types/jest": "^30.0.0",
-    "@types/natural": "^5.2.2",
     "@types/node": "^24.10.1",
-    "@types/string-similarity": "^4.0.2",
     "@types/uuid": "^10.0.0",
     "jest": "^30.2.0",
     "ts-jest": "^29.4.5",
