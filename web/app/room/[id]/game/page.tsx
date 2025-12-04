@@ -405,14 +405,21 @@ export default function GamePage() {
       return;
     }
     setRoundActive(true);
-    showFeedback('Round started! Microphone activated. Start speaking!', 'success');
-    // Auto-start microphone
-    setTimeout(() => {
-      if (isSupported) {
-        console.log('🎤 Auto-starting microphone for speaker');
-        start();
-      }
-    }, 500);
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase() : '';
+    const isMobile = /iphone|ipad|ipod|android/.test(ua);
+    if (isMobile) {
+      // On mobile, do not auto-start to ensure manual stop semantics
+      showFeedback('Round started! Tap mic to speak, tap again to send.', 'success');
+    } else {
+      showFeedback('Round started! Microphone activated. Start speaking!', 'success');
+      // Auto-start microphone on desktop
+      setTimeout(() => {
+        if (isSupported) {
+          console.log('🎤 Auto-starting microphone for speaker');
+          start();
+        }
+      }, 500);
+    }
   };
 
   const toggleMic = () => {

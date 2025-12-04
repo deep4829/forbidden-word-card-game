@@ -68,7 +68,8 @@ export function useSpeechRecognition(
     // Mobile browsers (iOS/Android) are more reliable with non-continuous, no interim
     const ua = typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase() : '';
     const isMobile = /iphone|ipad|ipod|android/.test(ua);
-    recognition.continuous = isMobile ? false : continuous;
+    // Keep listening on mobile until user manually stops
+    recognition.continuous = isMobile ? true : continuous;
     recognition.interimResults = isMobile ? false : interimResults;
     
     console.log('Speech Recognition configured:', { lang, continuous, interimResults });
