@@ -15,7 +15,6 @@ export interface Player {
   name: string;
   avatar: string;
   isReady: boolean;
-  team: 'A' | 'B' | null;
   score: number;
   guessesUsed?: number;
 }
@@ -28,8 +27,6 @@ export interface Room {
   players: Player[];
   currentClueGiver: string | null;
   currentCard: Card | null;
-  teamAScore: number;
-  teamBScore: number;
   gameStarted: boolean;
   roundInProgress: boolean;
 }

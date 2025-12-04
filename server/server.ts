@@ -105,7 +105,6 @@ function createPlayer(socketId: string, name: string, avatar: string = '🎮'): 
     name,
     avatar,
     isReady: false,
-    team: null,
     score: 0,
     guessesUsed: 0,
   };
@@ -118,8 +117,6 @@ function createRoom(roomId: string, hostPlayer: Player): Room {
     players: [hostPlayer],
     currentClueGiver: null,
     currentCard: null,
-    teamAScore: 0,
-    teamBScore: 0,
     gameStarted: false,
     roundInProgress: false,
   };
@@ -267,19 +264,6 @@ function endRound(room: Room, speakerId: string, guesserId: string): { speakerBo
     const unusedGuesses = Math.max(0, 10 - guessesUsed);
     guesserBonus = unusedGuesses * 0.5;
     guesser.score += guesserBonus;
-  }
-
-  // Update team scores
-  if (speaker?.team === 'A') {
-    room.teamAScore += points.speaker + speakerBonus;
-  } else if (speaker?.team === 'B') {
-    room.teamBScore += points.speaker + speakerBonus;
-  }
-
-  if (guesser?.team === 'A') {
-    room.teamAScore += points.guesser + guesserBonus;
-  } else if (guesser?.team === 'B') {
-    room.teamBScore += points.guesser + guesserBonus;
   }
 
   // Reset round state
@@ -677,8 +661,6 @@ io.on('connection', (socket) => {
       // Emit final score-updated event
       io.to(roomId).emit('score-updated', {
         room,
-        teamAScore: room.teamAScore,
-        teamBScore: room.teamBScore,
       });
 
       // Emit card-assigned to the new speaker after round ends
@@ -759,8 +741,6 @@ io.on('connection', (socket) => {
         // Emit score update
         io.to(roomId).emit('score-updated', {
           room,
-          teamAScore: room.teamAScore,
-          teamBScore: room.teamBScore,
         });
 
         // Emit card to new speaker

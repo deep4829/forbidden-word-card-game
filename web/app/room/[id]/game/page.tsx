@@ -495,43 +495,31 @@ export default function GamePage() {
               </div>
             </div>
 
-            {/* Team Scores */}
-            <div className="flex gap-4 sm:gap-8 w-full sm:w-auto justify-center">
-              <div className="text-center bg-blue-50 px-6 py-3 rounded-xl border-2 border-blue-200 min-w-[100px]">
-                <p className="text-xs sm:text-sm font-bold text-blue-800 uppercase tracking-wide mb-1">Team A</p>
-                <p className="text-3xl sm:text-4xl font-black text-blue-600">{room.teamAScore}</p>
+            {/* Player Rankings */}
+            <div className="w-full sm:w-auto">
+              <div className="flex flex-col gap-2">
+                {room.players
+                  .sort((a, b) => b.score - a.score)
+                  .map((player, index) => (
+                    <div
+                      key={player.id}
+                      className={`px-4 py-3 rounded-lg flex items-center justify-between gap-3 shadow-md transition-all ${
+                        player.id === currentPlayerId
+                          ? 'bg-purple-600 text-white ring-2 ring-purple-300'
+                          : 'bg-gray-100 text-gray-900'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-lg">{index + 1}.</span>
+                        <span className="text-2xl">{player.avatar}</span>
+                        <div>
+                          <p className="font-bold text-sm">{player.name}</p>
+                        </div>
+                      </div>
+                      <p className="text-xl font-black min-w-[50px] text-right">{Math.round(player.score)}</p>
+                    </div>
+                  ))}
               </div>
-              <div className="text-center bg-red-50 px-6 py-3 rounded-xl border-2 border-red-200 min-w-[100px]">
-                <p className="text-xs sm:text-sm font-bold text-red-800 uppercase tracking-wide mb-1">Team B</p>
-                <p className="text-3xl sm:text-4xl font-black text-red-600">{room.teamBScore}</p>
-              </div>
-            </div>
-
-            {/* Players Quick View */}
-            <div className="flex flex-wrap gap-3 justify-center sm:justify-start w-full sm:w-auto">
-              {room.players.map((player) => (
-                <div
-                  key={player.id}
-                  className={`px-3 sm:px-4 py-2 sm:py-3 rounded-lg text-sm font-bold min-h-[50px] flex items-center gap-2 shadow-md transition-transform hover:scale-105 ${
-                    player.id === currentPlayerId
-                      ? 'bg-purple-600 text-white ring-2 ring-purple-300'
-                      : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-                  }`}
-                  title={`${player.name}: ${player.score} pts`}
-                >
-                  <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-lg sm:text-xl font-bold shadow-md ${
-                    player.id === currentPlayerId
-                      ? 'bg-purple-700'
-                      : 'bg-gray-300'
-                  }`}>
-                    {player.avatar || player.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs leading-tight">{player.name}</span>
-                    <span className="text-xs font-extrabold">{player.score} pts</span>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         </div>
@@ -1006,7 +994,7 @@ export default function GamePage() {
                           )}
                         </p>
                         <p className="text-sm sm:text-base text-gray-700 font-medium mt-1">
-                          Team {player.team || 'None'} • <span className="font-bold">{player.score} pts</span>
+                          <span className="font-bold">{Math.round(player.score)} pts</span>
                         </p>
                       </div>
                     </div>

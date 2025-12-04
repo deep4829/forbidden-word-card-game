@@ -44,8 +44,8 @@ export default function HowToPlayButton() {
                   <span>📋</span> Game Overview
                 </h3>
                 <p className="text-gray-700 text-sm sm:text-base">
-                  This is a team-based word guessing game where one player (Speaker) gives clues to help their team guess a secret word. 
-                  Players take turns being the speaker and guesser.
+                  This is a word guessing game where one player (Speaker) gives clues to help others guess a secret word. 
+                  All players can earn points individually based on their performance as speakers and guessers.
                 </p>
               </div>
 
@@ -67,7 +67,7 @@ export default function HowToPlayButton() {
                     </li>
                     <li className="flex gap-2">
                       <span>3️⃣</span>
-                      <span><strong>Avoid forbidden words:</strong> Never say forbidden words or lose points!</span>
+                      <span><strong>Avoid forbidden words:</strong> Never say forbidden words or lose 5 points!</span>
                     </li>
                     <li className="flex gap-2">
                       <span>4️⃣</span>
@@ -79,7 +79,7 @@ export default function HowToPlayButton() {
                 {/* Guesser Role */}
                 <div className="bg-blue-50 border-3 border-blue-400 rounded-xl p-4 sm:p-6">
                   <h3 className="text-lg font-bold text-blue-900 mb-3 flex items-center gap-2">
-                    <span>🎯</span> Guesser Role
+                    <span>🎯</span> Guesser Role (Everyone)
                   </h3>
                   <ul className="space-y-2 text-sm text-gray-800">
                     <li className="flex gap-2">
@@ -118,15 +118,15 @@ export default function HowToPlayButton() {
                   </div>
                   <div className="flex gap-3">
                     <span className="font-bold text-purple-600">Step 3:</span>
-                    <span>After each clue, all guessers get ONE chance to guess</span>
+                    <span>After each clue, ALL players (including speaker's friends) get ONE chance to guess</span>
                   </div>
                   <div className="flex gap-3">
                     <span className="font-bold text-purple-600">Step 4:</span>
-                    <span>If someone guesses correctly, round ends and points are awarded</span>
+                    <span>If someone guesses correctly, round ends and points are awarded to the speaker and correct guesser</span>
                   </div>
                   <div className="flex gap-3">
                     <span className="font-bold text-purple-600">Step 5:</span>
-                    <span>If all 10 guesses are used, round ends (guessers lose)</span>
+                    <span>If all 10 guesses exhausted, round ends and players rotate (next player becomes speaker)</span>
                   </div>
                 </div>
               </div>
@@ -139,23 +139,23 @@ export default function HowToPlayButton() {
                 <ul className="space-y-2 text-sm text-gray-800">
                   <li className="flex gap-2">
                     <span>✓</span>
-                    <span><strong>As Speaker:</strong> Give creative clues but avoid obvious or forbidden words</span>
+                    <span><strong>As Speaker:</strong> Give creative clues but avoid forbidden words (-5 points penalty!)</span>
                   </li>
                   <li className="flex gap-2">
                     <span>✓</span>
-                    <span><strong>As Guesser:</strong> Ask clarifying questions through clues to narrow down options</span>
+                    <span><strong>As Guesser:</strong> Use strategy—fewer clues = more points. Listen carefully to all clues</span>
                   </li>
                   <li className="flex gap-2">
                     <span>✓</span>
-                    <span><strong>Mobile:</strong> Tap the mic button to start, speak, then tap again to send</span>
+                    <span><strong>Mobile:</strong> Tap the mic button to start speaking, then tap again to send your clue/guess</span>
                   </li>
                   <li className="flex gap-2">
                     <span>✓</span>
-                    <span><strong>Forbidden Words:</strong> If spoken, you lose points immediately</span>
+                    <span><strong>Forbidden Words:</strong> Speaking any forbidden word costs you 5 points immediately</span>
                   </li>
                   <li className="flex gap-2">
                     <span>✓</span>
-                    <span><strong>Teamwork:</strong> Coordinate with your team for better strategy</span>
+                    <span><strong>Competition:</strong> Everyone competes individually—the player with the highest score wins!</span>
                   </li>
                 </ul>
               </div>
