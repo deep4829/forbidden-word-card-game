@@ -106,7 +106,19 @@ export function useSpeechRecognition(
 
     // Handle end event
     recognition.onend = () => {
+      // Recognition ended (mobile browsers may auto-stop)
       setIsListening(false);
+      // If we have an accumulated final transcript, send it
+      try {
+        const text = accumulatedTranscriptRef.current?.trim();
+        if (text && onResult) {
+          console.log('onend: Sending accumulated transcript:', text);
+          onResult(text);
+          accumulatedTranscriptRef.current = '';
+        }
+      } catch (e) {
+        // swallow errors
+      }
     };
 
     recognitionRef.current = recognition;
