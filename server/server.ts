@@ -734,9 +734,6 @@ io.on('connection', (socket) => {
       if (allGuessersExhausted) {
         console.log(`[socket] All guessers exhausted in room ${roomId}. Auto-advancing round...`);
 
-        // Save the current card before calling endRound (which clears it)
-        const previousCardWord = room.currentCard?.mainWord || 'Unknown';
-
         // End round with no correct guess
         const oldSpeakerId = room.currentClueGiver;
         endRound(room, room.currentClueGiver!, socket.id); // Use incorrect guesser for scoring
@@ -754,7 +751,7 @@ io.on('connection', (socket) => {
         io.to(roomId).emit('round-ended', {
           success: false,
           reason: 'All guesses exhausted',
-          targetWord: previousCardWord,
+          targetWord: room.currentCard?.mainWord, // Previous card
           speakerId: oldSpeakerId,
           room,
         });

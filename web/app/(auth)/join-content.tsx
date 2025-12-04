@@ -238,13 +238,13 @@ export default function JoinContent() {
                       🔄 Random
                     </button>
                   </div>
-                  <div className="mt-3 grid grid-cols-4 sm:grid-cols-5 gap-2">
+                  <div className="mt-3 grid grid-cols-5 gap-2">
                     {AVATARS.map((avatar, idx) => (
                       <button
                         key={idx}
                         type="button"
                         onClick={() => { setPlayerAvatar(avatar); try { play('click'); } catch (e) {} }}
-                        className={`text-xl sm:text-2xl p-1 sm:p-2 rounded-lg transition-all ${ playerAvatar === avatar ? 'bg-indigo-500 scale-125' : 'bg-gray-200 hover:bg-gray-300'}`}
+                        className={`text-2xl p-2 rounded-lg transition-all ${ playerAvatar === avatar ? 'bg-indigo-500 scale-125' : 'bg-gray-200 hover:bg-gray-300'}`}
                       >
                         {avatar}
                       </button>
@@ -308,13 +308,13 @@ export default function JoinContent() {
                       🔄 Random
                     </button>
                   </div>
-                  <div className="mt-3 grid grid-cols-4 sm:grid-cols-5 gap-2">
+                  <div className="mt-3 grid grid-cols-5 gap-2">
                     {AVATARS.map((avatar, idx) => (
                       <button
                         key={idx}
                         type="button"
                         onClick={() => setPlayerAvatar(avatar)}
-                        className={`text-xl sm:text-2xl p-1 sm:p-2 rounded-lg transition-all ${playerAvatar === avatar ? 'bg-indigo-500 scale-125' : 'bg-gray-200 hover:bg-gray-300'}`}
+                        className={`text-2xl p-2 rounded-lg transition-all ${playerAvatar === avatar ? 'bg-indigo-500 scale-125' : 'bg-gray-200 hover:bg-gray-300'}`}
                       >
                         {avatar}
                       </button>

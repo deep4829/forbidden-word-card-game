@@ -4,7 +4,7 @@
  */
 
 import { compareTwoStrings } from 'string-similarity';
-import * as natural from 'natural';
+import natural from 'natural';
 import { normalize } from './forbiddenCheck';
 
 // Configuration
@@ -37,8 +37,9 @@ export function isPhoneticMatch(word1: string, word2: string): boolean {
   const normalized2 = normalize(word2);
   
   // Metaphone is good for English words
-  const code1 = natural.metaphone(normalized1);
-  const code2 = natural.metaphone(normalized2);
+  const metaphone = new natural.Metaphone();
+  const code1 = metaphone.process(normalized1);
+  const code2 = metaphone.process(normalized2);
   const match = code1 === code2;
   
   console.log(`[Phonetic Match] "${word1}" (${code1}) vs "${word2}" (${code2}) = ${match}`);
@@ -56,8 +57,9 @@ export function isSoundexMatch(word1: string, word2: string): boolean {
   const normalized1 = normalize(word1);
   const normalized2 = normalize(word2);
   
-  const code1 = natural.soundex(normalized1);
-  const code2 = natural.soundex(normalized2);
+  const soundex = new natural.SoundEx();
+  const code1 = soundex.process(normalized1);
+  const code2 = soundex.process(normalized2);
   const match = code1 === code2;
   
   console.log(`[Soundex Match] "${word1}" (${code1}) vs "${word2}" (${code2}) = ${match}`);
@@ -73,7 +75,7 @@ export function isSoundexMatch(word1: string, word2: string): boolean {
 export function isCloseTypo(str1: string, str2: string): boolean {
   const normalized1 = normalize(str1);
   const normalized2 = normalize(str2);
-  const distance = natural.LevenshteinDistance(normalized1, normalized2) as number;
+  const distance = natural.LevenshteinDistance(normalized1, normalized2);
   
   // Adaptive threshold: longer words allow more edits
   const minLength = Math.min(normalized1.length, normalized2.length);
