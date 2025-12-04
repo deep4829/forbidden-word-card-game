@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import socket from '@/lib/socket';
 import { useSound } from '@/lib/useSound';
@@ -54,21 +54,40 @@ export default function RoomPage() {
   // Compute invite URL
   const inviteUrl = getInviteUrl();
 
-  // Set current player ID when socket connects
+  const attemptRejoin = useCallback(() => {
+    if (!roomId) {
+      return;
+    }
+
+    const playerName = localStorage.getItem('playerName');
+    const playerAvatar = localStorage.getItem('playerAvatar');
+
+    if (playerName && playerAvatar) {
+      console.log('[room] attemptRejoin sending join-room', { roomId, playerName });
+      socket.emit('join-room', { roomId, playerName, playerAvatar });
+    } else {
+      console.log('[room] attemptRejoin fallback get-room', roomId);
+      socket.emit('get-room', roomId);
+    }
+  }, [roomId]);
+
+  // Set current player ID when socket connects and ensure we rejoin
   useEffect(() => {
     if (socket.connected) {
       setCurrentPlayerId(socket.id || '');
+      attemptRejoin();
     }
 
     const onConnect = () => {
       setCurrentPlayerId(socket.id || '');
+      attemptRejoin();
     };
 
     socket.on('connect', onConnect);
     return () => {
       socket.off('connect', onConnect);
     };
-  }, []);
+  }, [attemptRejoin]);
 
   const { play } = useSound();
 
@@ -131,19 +150,7 @@ export default function RoomPage() {
   // Request room data on mount
   useEffect(() => {
     if (roomId && socket.connected) {
-      // Get player info from localStorage
-      const playerName = localStorage.getItem('playerName');
-      const playerAvatar = localStorage.getItem('playerAvatar');
-      
-      if (playerName && playerAvatar) {
-        // First try to join the room (in case of reconnection)
-        console.log('Attempting to rejoin room:', roomId);
-        socket.emit('join-room', { roomId, playerName, playerAvatar });
-      } else {
-        // Fall back to just requesting room data
-        console.log('Requesting room data for:', roomId);
-        socket.emit('get-room', roomId);
-      }
+      attemptRejoin();
     }
 
     // Set loading to false after a timeout if no response
@@ -158,7 +165,7 @@ export default function RoomPage() {
     return () => {
       clearTimeout(timeout);
     };
-  }, [roomId]);
+  }, [roomId, attemptRejoin]);
 
   // Keep room alive by sending periodic pings
   useEffect(() => {
