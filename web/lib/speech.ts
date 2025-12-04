@@ -78,7 +78,11 @@ export function useSpeechRecognition(
     // Enable interim results on mobile to get real-time feedback and keep session alive
     recognition.interimResults = isMobile ? true : interimResults;
     
-    console.log('Speech Recognition configured:', { lang, continuous, interimResults });
+    console.log('🎤 Speech Recognition configured:', { 
+      isMobile, 
+      continuous: recognition.continuous, 
+      interimResults: recognition.interimResults 
+    });
 
     // Handle result event
     recognition.onresult = (event: any) => {
@@ -91,12 +95,13 @@ export function useSpeechRecognition(
 
       setTranscript(transcriptText);
 
-      // Store final results
+      // Store final results for later sending
       if (event.results[event.results.length - 1].isFinal) {
         accumulatedTranscriptRef.current = transcriptText;
-        // On mobile with interim results, recognition stays open naturally
-        // Don't try to restart - let Chrome's continuous mode keep it running
-        console.log('Mobile final result received:', transcriptText);
+        console.log('✓ Final result received:', transcriptText, '| isMobile:', isMobileRef.current);
+        // Let onend handle mobile restart logic
+      } else {
+        console.log('~ Interim result:', transcriptText);
       }
     };
 
@@ -137,21 +142,40 @@ export function useSpeechRecognition(
 
     // Handle end event
     recognition.onend = () => {
-      // Recognition ended (mobile browsers may auto-stop)
+      console.log('🔴 recognition.onend fired:', {
+        userStopped: userStoppedRef.current,
+        isMobile: isMobileRef.current,
+        manualStop: manualStopRequestedRef.current,
+        accumulatedTranscript: accumulatedTranscriptRef.current?.substring(0, 50),
+      });
       setIsListening(false);
-      // Only send result if user explicitly turned off mic via stop()
-      try {
-        const text = accumulatedTranscriptRef.current?.trim();
-        if (manualStopRequestedRef.current && text && onResult) {
-          console.log('onend (manual): Sending accumulated transcript:', text);
-          onResult(text);
-          accumulatedTranscriptRef.current = '';
+      
+      // If user manually stopped, send the result
+      if (manualStopRequestedRef.current) {
+        try {
+          const text = accumulatedTranscriptRef.current?.trim();
+          if (text && onResult) {
+            console.log('📤 onend (manual stop): Sending accumulated transcript:', text);
+            onResult(text);
+            accumulatedTranscriptRef.current = '';
+          }
+        } catch (e) {
+          console.error('Error in onend:', e);
+        } finally {
+          manualStopRequestedRef.current = false;
         }
-      } catch (e) {
-        // swallow errors
-      } finally {
-        // reset manual flag regardless
-        manualStopRequestedRef.current = false;
+      } else if (isMobileRef.current && !userStoppedRef.current) {
+        // Mobile auto-stopped (Chrome Android behavior) - restart to keep listening
+        console.log('📱 Mobile: Recognition auto-stopped, restarting to keep listening...');
+        try {
+          if (recognitionRef.current) {
+            recognitionRef.current.start();
+            setIsListening(true);
+            console.log('✓ Recognition restarted successfully');
+          }
+        } catch (e) {
+          console.error('❌ Error restarting recognition:', e);
+        }
       }
     };
 
@@ -169,7 +193,7 @@ export function useSpeechRecognition(
   }, [lang, continuous, interimResults]);
 
   const start = () => {
-    console.log('Speech.start() called - isSupported:', isSupported, 'isListening:', isListening, 'recognitionRef exists:', !!recognitionRef.current);
+    console.log('🎙️ Speech.start() called', { isSupported, isListening, hasRef: !!recognitionRef.current });
     
     if (!isSupported) {
       console.warn('Cannot start: Speech Recognition is not supported');
@@ -178,14 +202,15 @@ export function useSpeechRecognition(
 
     if (!isListening && recognitionRef.current) {
       try {
-        console.log('Calling recognition.start()');
+        console.log('▶️ Calling recognition.start()');
         recognitionRef.current.start();
         setIsListening(true);
         setTranscript('');
-        accumulatedTranscriptRef.current = ''; // Clear accumulated transcript
+        accumulatedTranscriptRef.current = '';
         setIsFallbackMode(false);
+        console.log('✓ Recognition started successfully');
       } catch (error) {
-        console.error('Error starting speech recognition:', error);
+        console.error('❌ Error starting speech recognition:', error);
         const errorMsg = (error as Error).message || 'Failed to start speech recognition';
         
         if (onError) {
@@ -198,20 +223,25 @@ export function useSpeechRecognition(
   };
 
   const stop = () => {
-    console.log('Speech.stop() called - isListening:', isListening, 'recognitionRef exists:', !!recognitionRef.current);
+    console.log('⏹️ Speech.stop() called', { isListening, hasRef: !!recognitionRef.current });
     
-    userStoppedRef.current = true;
     if (isListening && recognitionRef.current) {
       try {
-        console.log('Calling recognition.stop()');
-        // mark that this end is manual
+        console.log('🛑 User manually stopping - setting manualStopRequestedRef = true');
+        // Mark that user is manually stopping (before calling stop)
         manualStopRequestedRef.current = true;
+        userStoppedRef.current = true;
         recognitionRef.current.stop();
         setIsListening(false);
         
-        // Do not emit here; rely on onend to fire and handle manual case
+        // Reset after a small delay to allow onend to check userStoppedRef
+        setTimeout(() => {
+          userStoppedRef.current = false;
+          console.log('✓ userStoppedRef reset after manual stop');
+        }, 100);
+        console.log('✓ Recognition stopped, waiting for onend to send result...');
       } catch (error) {
-        console.error('Error stopping speech recognition:', error);
+        console.error('❌ Error stopping speech recognition:', error);
       }
     }
 
@@ -220,8 +250,6 @@ export function useSpeechRecognition(
       mediaStreamRef.current.getTracks().forEach(track => track.stop());
       mediaStreamRef.current = null;
     }
-    
-    userStoppedRef.current = false;
   };
 
   return {
