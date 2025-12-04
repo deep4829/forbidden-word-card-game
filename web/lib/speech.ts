@@ -69,36 +69,34 @@ export function useSpeechRecognition(
     // Initialize Speech Recognition
     const recognition = new SpeechRecognition();
     recognition.lang = lang;
-    // Mobile browsers (iOS/Android) are more reliable with non-continuous, no interim
+    // Mobile browsers (iOS/Android) need continuous + interim for reliable listening
     const ua = typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase() : '';
     const isMobile = /iphone|ipad|ipod|android/.test(ua);
     isMobileRef.current = isMobile;
     // Keep listening on mobile until user manually stops
     recognition.continuous = isMobile ? true : continuous;
-    recognition.interimResults = isMobile ? false : interimResults;
+    // Enable interim results on mobile to get real-time feedback and keep session alive
+    recognition.interimResults = isMobile ? true : interimResults;
     
     console.log('Speech Recognition configured:', { lang, continuous, interimResults });
 
     // Handle result event
     recognition.onresult = (event: any) => {
-      const lastResultIndex = event.results.length - 1;
-      const result = event.results[lastResultIndex];
-      const transcriptText = result[0].transcript;
+      let transcriptText = '';
+      
+      // Accumulate all results (both interim and final)
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcriptText += event.results[i][0].transcript;
+      }
 
       setTranscript(transcriptText);
 
-      // Accumulate final results but don't send yet
-      if (result.isFinal) {
+      // Store final results
+      if (event.results[event.results.length - 1].isFinal) {
         accumulatedTranscriptRef.current = transcriptText;
-        // On mobile, restart recognition after final result to keep listening
-        if (isMobileRef.current && recognitionRef.current && !userStoppedRef.current) {
-          try {
-            console.log('Mobile: Restarting recognition to keep listening...');
-            recognitionRef.current.start();
-          } catch (e) {
-            // Ignore if already started
-          }
-        }
+        // On mobile with interim results, recognition stays open naturally
+        // Don't try to restart - let Chrome's continuous mode keep it running
+        console.log('Mobile final result received:', transcriptText);
       }
     };
 
