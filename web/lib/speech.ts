@@ -65,8 +65,11 @@ export function useSpeechRecognition(
     // Initialize Speech Recognition
     const recognition = new SpeechRecognition();
     recognition.lang = lang;
-    recognition.continuous = continuous;
-    recognition.interimResults = interimResults;
+    // Mobile browsers (iOS/Android) are more reliable with non-continuous, no interim
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase() : '';
+    const isMobile = /iphone|ipad|ipod|android/.test(ua);
+    recognition.continuous = isMobile ? false : continuous;
+    recognition.interimResults = isMobile ? false : interimResults;
     
     console.log('Speech Recognition configured:', { lang, continuous, interimResults });
 
@@ -104,6 +107,19 @@ export function useSpeechRecognition(
       if (onError) {
         onError(errorMessage);
       }
+    };
+
+    // Handle audio end (some mobile browsers fire audioend before end)
+    // We still only emit on manual stop
+    recognition.onaudioend = () => {
+      try {
+        const text = accumulatedTranscriptRef.current?.trim();
+        if (manualStopRequestedRef.current && text && onResult) {
+          console.log('onaudioend (manual): Sending accumulated transcript:', text);
+          onResult(text);
+          accumulatedTranscriptRef.current = '';
+        }
+      } catch {}
     };
 
     // Handle end event
