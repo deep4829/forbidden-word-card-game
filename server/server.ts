@@ -71,7 +71,21 @@ const io = new Server(httpServer, {
   },
 });
 
-const PORT = process.env.PORT || 4000;
+const DEFAULT_PORT = 4000;
+const envPort = process.env.PORT;
+let PORT = DEFAULT_PORT;
+
+if (envPort) {
+  const parsedPort = Number.parseInt(envPort, 10);
+
+  if (!Number.isNaN(parsedPort) && parsedPort > 0) {
+    PORT = parsedPort;
+  } else {
+    console.warn(`[server] Invalid PORT value "${envPort}" provided. Falling back to ${DEFAULT_PORT}.`);
+  }
+} else {
+  console.warn(`[server] PORT environment variable not detected. Falling back to ${DEFAULT_PORT}.`);
+}
 
 // In-memory storage for rooms
 const rooms = new Map<string, Room>();
@@ -1103,7 +1117,7 @@ io.on('connection', (socket) => {
   });
 });
 
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
   
   // Start cleanup interval for expired rooms
