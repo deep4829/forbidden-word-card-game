@@ -509,6 +509,16 @@ io.on('connection', (socket) => {
     
     if (existingPlayer) {
       const previousSocketId = existingPlayer.id;
+      
+      // Only allow reconnection if this is the SAME socket trying to rejoin (or same player reconnecting)
+      // If it's a different socket, it's a duplicate name attempt - reject it
+      if (previousSocketId !== socket.id) {
+        // NEW: This is a different player trying to use the same name+avatar
+        socket.emit('error', { message: `Player name "${playerName}" is already taken in this room. Please choose a different name.` });
+        console.log(`[join-room] Duplicate name+avatar rejected: ${playerName} in room ${roomId}`);
+        return;
+      }
+
       const playerKey = `${playerName}:${playerAvatar}`;
 
       // Reconnection case: update the socket ID and rejoin
