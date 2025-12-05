@@ -90,3 +90,45 @@ html {
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* Desktop Single Viewport - No Page Scroll */
+@media (min-width: 1024px) {
+  .desktop-viewport {
+    height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .desktop-content {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  /* Scrollable containers within single viewport */
+  .desktop-scroll {
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(139, 92, 246, 0.5) transparent;
+  }
+  
+  .desktop-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .desktop-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .desktop-scroll::-webkit-scrollbar-thumb {
+    background: rgba(139, 92, 246, 0.5);
+    border-radius: 3px;
+  }
+  
+  .desktop-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(139, 92, 246, 0.7);
+  }
+}

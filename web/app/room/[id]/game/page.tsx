@@ -703,10 +703,10 @@ export default function GamePage() {
   }
 
   return (
-    <div className="min-h-screen min-h-dvh overflow-y-auto bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 p-3 sm:p-4 md:p-6 pb-24">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen min-h-dvh overflow-y-auto lg:overflow-hidden lg:h-screen lg:max-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 p-3 sm:p-4 md:p-6 pb-24 lg:pb-6 lg:flex lg:flex-col">
+      <div className="max-w-7xl mx-auto lg:flex lg:flex-col lg:flex-1 lg:overflow-hidden lg:w-full">
         {/* ScoreBoard Component */}
-        <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-4 sm:p-6 mb-4 sm:mb-6">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-4 sm:p-6 lg:p-4 mb-4 sm:mb-6 lg:mb-4 lg:flex-shrink-0">
           <div className="flex flex-col sm:flex-row sm:flex-wrap items-center justify-between gap-3 sm:gap-4">
             {/* Round Info */}
             <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 w-full sm:w-auto">
@@ -756,7 +756,7 @@ export default function GamePage() {
         {/* Feedback Banner */}
         {feedback && (
           <div
-            className={`rounded-xl p-4 sm:p-5 mb-4 sm:mb-6 font-bold text-center text-base sm:text-lg shadow-2xl min-h-[60px] flex items-center justify-center ${
+            className={`rounded-xl p-4 sm:p-5 lg:p-3 mb-4 sm:mb-6 lg:mb-4 font-bold text-center text-base sm:text-lg lg:text-base shadow-2xl min-h-[60px] lg:min-h-[48px] flex items-center justify-center lg:flex-shrink-0 ${
               feedbackType === 'success'
                 ? 'bg-green-600 text-white border-2 border-green-400'
                 : feedbackType === 'error'
@@ -768,40 +768,40 @@ export default function GamePage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-4 lg:flex-1 lg:overflow-hidden">
           {/* Main Content Area */}
-          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6 lg:space-y-4 lg:overflow-y-auto lg:pr-2 desktop-scroll">
             {isSpeaker ? (
               /* Speaker View */
               <>
                 {/* Card View Component */}
-                <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-5 sm:p-8">
-                  <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-4 sm:mb-6 text-center">
+                <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-5 sm:p-8 lg:p-5">
+                  <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-xl font-bold text-gray-900 mb-4 sm:mb-6 lg:mb-3 text-center">
                     Your Card 🎴
                   </h2>
                   
                   {currentCard ? (
-                    <div className="space-y-4 sm:space-y-6">
+                    <div className="space-y-4 sm:space-y-6 lg:space-y-3">
                       {/* Target Word */}
-                      <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl sm:rounded-2xl p-6 sm:p-10 text-center shadow-lg border-4 border-green-400">
-                        <p className="text-white text-xs sm:text-sm font-bold mb-2 uppercase tracking-widest">
+                      <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl sm:rounded-2xl p-6 sm:p-10 lg:p-4 text-center shadow-lg border-4 border-green-400">
+                        <p className="text-white text-xs sm:text-sm lg:text-xs font-bold mb-2 lg:mb-1 uppercase tracking-widest">
                           Target Word
                         </p>
-                        <p className="text-white text-3xl sm:text-5xl md:text-6xl font-black break-words">
+                        <p className="text-white text-3xl sm:text-5xl md:text-6xl lg:text-3xl font-black break-words">
                           {currentCard.mainWord}
                         </p>
                       </div>
 
                       {/* Forbidden Words */}
-                      <div className="bg-red-50 rounded-xl sm:rounded-2xl p-5 sm:p-6 border-4 border-red-400 shadow-lg">
-                        <p className="text-red-800 text-sm sm:text-base font-bold mb-4 uppercase tracking-wider text-center">
+                      <div className="bg-red-50 rounded-xl sm:rounded-2xl p-5 sm:p-6 lg:p-3 border-4 lg:border-2 border-red-400 shadow-lg">
+                        <p className="text-red-800 text-sm sm:text-base lg:text-xs font-bold mb-4 lg:mb-2 uppercase tracking-wider text-center">
                           🚫 Forbidden Words
                         </p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-2">
                           {currentCard.forbiddenWords.map((word, index) => (
                             <div
                               key={index}
-                              className="bg-red-200 text-red-900 font-bold text-center py-4 px-4 rounded-lg border-2 border-red-400 text-base sm:text-lg min-h-[56px] flex items-center justify-center shadow-md"
+                              className="bg-red-200 text-red-900 font-bold text-center py-4 px-4 lg:py-2 lg:px-2 rounded-lg border-2 border-red-400 text-base sm:text-lg lg:text-sm min-h-[56px] lg:min-h-0 flex items-center justify-center shadow-md"
                             >
                               {word}
                             </div>
@@ -818,15 +818,15 @@ export default function GamePage() {
                 </div>
 
                 {/* Mic Control Component */}
-                <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-5 sm:p-8">
-                  <div className="flex items-center justify-between mb-4 sm:mb-6">
-                    <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
+                <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-5 sm:p-8 lg:p-4">
+                  <div className="flex items-center justify-between mb-4 sm:mb-6 lg:mb-3">
+                    <h3 className="text-lg sm:text-xl md:text-2xl lg:text-base font-bold text-gray-900">
                       Voice Control 🎤
                     </h3>
                     {isSupported && roundActive && (
                       <button
                         onClick={() => setUseManualInput(!useManualInput)}
-                        className={`text-xs sm:text-sm px-3 sm:px-4 py-2 rounded-lg font-bold transition-all ${
+                        className={`text-xs sm:text-sm lg:text-xs px-3 sm:px-4 lg:px-2 py-2 lg:py-1 rounded-lg font-bold transition-all ${
                           useManualInput
                             ? 'bg-orange-600 text-white ring-2 ring-orange-300'
                             : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -838,46 +838,46 @@ export default function GamePage() {
                   </div>
                   
                   {!isSupported ? (
-                    <div className="text-center py-8 space-y-4">
-                      <p className="text-red-700 font-bold text-base sm:text-lg">
+                    <div className="text-center py-8 lg:py-4 space-y-4 lg:space-y-2">
+                      <p className="text-red-700 font-bold text-base sm:text-lg lg:text-sm">
                         ⚠️ Speech recognition is not supported in your browser
                       </p>
-                      <p className="text-gray-700 text-sm sm:text-base mb-4">
+                      <p className="text-gray-700 text-sm sm:text-base lg:text-xs mb-4 lg:mb-2">
                         Recommended: Chrome, Edge, or Safari
                       </p>
-                      <p className="text-gray-600 text-sm">
+                      <p className="text-gray-600 text-sm lg:text-xs">
                         You can still play using manual text input below!
                       </p>
                       <button
                         onClick={() => setUseManualInput(true)}
-                        className="px-6 py-3 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-700 transition-colors"
+                        className="px-6 py-3 lg:px-4 lg:py-2 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-700 transition-colors lg:text-sm"
                       >
                         Switch to Manual Input
                       </button>
                     </div>
                   ) : !roundActive ? (
                     /* Start Round Button - Shown before round starts */
-                    <div className="text-center py-8 space-y-6">
-                      <div className="text-6xl sm:text-7xl mb-4">🎯</div>
-                      <p className="text-gray-700 text-base sm:text-lg font-medium mb-6">
+                    <div className="text-center py-8 lg:py-4 space-y-6 lg:space-y-3">
+                      <div className="text-6xl sm:text-7xl lg:text-4xl mb-4 lg:mb-2">🎯</div>
+                      <p className="text-gray-700 text-base sm:text-lg lg:text-sm font-medium mb-6 lg:mb-3">
                         Ready to give clues? Start the round when you&apos;re prepared!
                       </p>
                       <button
                         onClick={handleStartRound}
                         disabled={!currentCard}
-                        className="px-8 py-5 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xl sm:text-2xl font-bold rounded-xl hover:from-green-600 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95 shadow-2xl min-h-[64px] uppercase tracking-wide"
+                        className="px-8 py-5 lg:px-6 lg:py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xl sm:text-2xl lg:text-base font-bold rounded-xl hover:from-green-600 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95 shadow-2xl min-h-[64px] lg:min-h-0 uppercase tracking-wide"
                       >
                         🚀 Start Round
                       </button>
                       {!currentCard && (
-                        <p className="text-sm text-gray-500 mt-2">Waiting for card assignment...</p>
+                        <p className="text-sm lg:text-xs text-gray-500 mt-2 lg:mt-1">Waiting for card assignment...</p>
                       )}
                     </div>
                   ) : useManualInput ? (
                     /* Manual Text Input Mode */
-                    <form onSubmit={handleManualClueSubmit} className="space-y-6">
+                    <form onSubmit={handleManualClueSubmit} className="space-y-6 lg:space-y-3">
                       <div>
-                        <label htmlFor="manualClue" className="block text-sm font-bold text-gray-700 mb-3">
+                        <label htmlFor="manualClue" className="block text-sm lg:text-xs font-bold text-gray-700 mb-3 lg:mb-1">
                           Type your clue:
                         </label>
                         <textarea
@@ -980,13 +980,14 @@ export default function GamePage() {
                       )}
 
                       {/* Help Text */}
-                      <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-3 text-sm text-gray-700">
-                        <p className="font-semibold mb-1">💡 Tips:</p>
-                        <ul className="list-disc list-inside space-y-1 text-xs">
+                      <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-3 lg:p-2 text-sm lg:text-xs text-gray-700">
+                        <p className="font-semibold mb-1 lg:mb-0">💡 Tips:</p>
+                        <ul className="list-disc list-inside space-y-1 lg:space-y-0 text-xs lg:hidden">
                           <li>Click mic to start, speak your clue, then click again to send</li>
                           <li>Your clue is sent only when you stop the mic</li>
                           <li>Avoid forbidden words or lose points!</li>
                         </ul>
+                        <span className="hidden lg:inline">Click mic → speak → click to send. Avoid forbidden words!</span>
                       </div>
                     </div>
                   )}
@@ -996,17 +997,17 @@ export default function GamePage() {
               /* Guesser View */
               <>
                 {/* Clue History */}
-                <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-5 sm:p-8">
-                  <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-4 sm:mb-6 text-center">
+                <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-5 sm:p-8 lg:p-4">
+                  <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-lg font-bold text-gray-900 mb-4 sm:mb-6 lg:mb-2 text-center">
                     Clues Received 💬
                   </h2>
                   
                   {clueHistory.length > 0 ? (
-                    <div className="space-y-3 max-h-80 sm:max-h-96 overflow-y-auto pr-2">
+                    <div className="space-y-3 lg:space-y-2 max-h-80 sm:max-h-96 lg:max-h-40 overflow-y-auto pr-2 desktop-scroll">
                       {clueHistory.map((clue, index) => (
                         <div
                           key={index}
-                          className="bg-gradient-to-r from-blue-100 to-purple-100 rounded-xl p-4 sm:p-5 border-l-4 border-blue-600 shadow-md hover:shadow-lg transition-shadow"
+                          className="bg-gradient-to-r from-blue-100 to-purple-100 rounded-xl lg:rounded-lg p-4 sm:p-5 lg:p-2 border-l-4 border-blue-600 shadow-md hover:shadow-lg transition-shadow"
                         >
                           <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
                             <p className="text-gray-900 text-base sm:text-lg font-medium flex-1">
@@ -1028,27 +1029,27 @@ export default function GamePage() {
                 </div>
 
                 {/* Guess Input Component */}
-                <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-5 sm:p-8">
-                  <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 text-center">
+                <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-5 sm:p-8 lg:p-4">
+                  <h3 className="text-lg sm:text-xl md:text-2xl lg:text-base font-bold text-gray-900 mb-4 sm:mb-6 lg:mb-2 text-center">
                     Make Your Guess 🎯
                   </h3>
                   
                   {/* Guesses Remaining - Mobile-friendly compact layout */}
-                  <div className="mb-6">
-                    <div className="flex items-center justify-center gap-2 mb-3">
-                      <span className="text-gray-900 font-bold text-base sm:text-lg">Guesses Remaining:</span>
-                      <span className="font-black text-green-700">{Math.max(0, maxGuesses - guessesUsed)}</span>
-                      <span className="text-gray-500">/ {maxGuesses}</span>
+                  <div className="mb-6 lg:mb-3">
+                    <div className="flex items-center justify-center gap-2 mb-3 lg:mb-2">
+                      <span className="text-gray-900 font-bold text-base sm:text-lg lg:text-sm">Guesses Remaining:</span>
+                      <span className="font-black text-green-700 lg:text-sm">{Math.max(0, maxGuesses - guessesUsed)}</span>
+                      <span className="text-gray-500 lg:text-sm">/ {maxGuesses}</span>
                     </div>
                     <div className="mx-auto max-w-full">
-                      <div className="grid grid-cols-5 sm:grid-cols-10 gap-2 sm:gap-2 place-items-center">
+                      <div className="grid grid-cols-5 sm:grid-cols-10 gap-2 sm:gap-2 lg:gap-1 place-items-center">
                         {Array.from({ length: maxGuesses }).map((_, index) => (
                           <div
                             key={index}
-                            className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-base sm:text-lg shadow-md ${
+                            className={`w-8 h-8 sm:w-10 sm:h-10 lg:w-6 lg:h-6 rounded-full flex items-center justify-center font-bold text-base sm:text-lg lg:text-xs shadow-md ${
                               index < maxGuesses - guessesUsed
-                                ? 'bg-green-600 text-white ring-2 ring-green-300'
-                                : 'bg-gray-400 text-gray-700 ring-2 ring-gray-300'
+                                ? 'bg-green-600 text-white ring-2 lg:ring-1 ring-green-300'
+                                : 'bg-gray-400 text-gray-700 ring-2 lg:ring-1 ring-gray-300'
                             }`}
                           >
                             {index < maxGuesses - guessesUsed ? '✓' : '✗'}
@@ -1059,22 +1060,22 @@ export default function GamePage() {
                   </div>
 
                   {/* Guess Form + Mic */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <form onSubmit={handleGuessSubmit} className="space-y-4 order-2 md:order-1">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-2">
+                    <form onSubmit={handleGuessSubmit} className="space-y-4 lg:space-y-2 order-2 md:order-1">
                       <input
                         type="text"
                         value={guessInput}
                         onChange={(e) => setGuessInput(e.target.value)}
                         placeholder="Type your guess..."
                         aria-label="Guess input"
-                        className="w-full px-5 sm:px-6 py-4 sm:py-5 text-base sm:text-lg md:text-xl border-4 border-gray-300 rounded-xl focus:ring-4 focus:ring-purple-500 focus:border-purple-500 outline-none transition text-gray-900 font-medium placeholder-gray-500 shadow-inner min-h-[56px]"
+                        className="w-full px-5 sm:px-6 lg:px-3 py-4 sm:py-5 lg:py-2 text-base sm:text-lg md:text-xl lg:text-sm border-4 lg:border-2 border-gray-300 rounded-xl lg:rounded-lg focus:ring-4 lg:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition text-gray-900 font-medium placeholder-gray-500 shadow-inner min-h-[56px] lg:min-h-0"
                         disabled={guessesUsed >= maxGuesses || gamePhase !== 'guessing' || playerHasGuessed}
                         maxLength={50}
                       />
                       <button
                         type="submit"
                         disabled={!guessInput.trim() || guessesUsed >= maxGuesses || gamePhase !== 'guessing' || playerHasGuessed}
-                        className="w-full py-4 sm:py-5 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-lg sm:text-xl font-black rounded-xl hover:from-purple-700 hover:to-pink-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95 shadow-2xl min-h-[56px] uppercase tracking-wide"
+                        className="w-full py-4 sm:py-5 lg:py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-lg sm:text-xl lg:text-sm font-black rounded-xl lg:rounded-lg hover:from-purple-700 hover:to-pink-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95 shadow-2xl min-h-[56px] lg:min-h-0 uppercase tracking-wide"
                       >
                         {playerHasGuessed ? '✓ You Guessed' : guessesUsed >= maxGuesses ? '🚫 No Guesses Left' : gamePhase !== 'guessing' ? '⏳ Waiting for Clue...' : '🎯 Submit Guess'}
                       </button>
@@ -1183,14 +1184,14 @@ export default function GamePage() {
           </div>
 
           {/* Sidebar - Player Details */}
-          <div className="space-y-4 sm:space-y-6">
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-5 sm:p-6">
-              <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Players</h3>
-              <div className="space-y-3">
+          <div className="space-y-4 sm:space-y-6 lg:space-y-3 lg:overflow-y-auto lg:pr-1 desktop-scroll">
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-5 sm:p-6 lg:p-4">
+              <h3 className="text-lg sm:text-xl lg:text-base font-bold text-gray-900 mb-4 lg:mb-2">Players</h3>
+              <div className="space-y-3 lg:space-y-2">
                 {room.players.map((player) => (
                   <div
                     key={player.id}
-                    className={`p-4 sm:p-5 rounded-xl border-3 shadow-md transition-all hover:shadow-lg min-h-[88px] ${
+                    className={`p-4 sm:p-5 lg:p-3 rounded-xl border-3 shadow-md transition-all hover:shadow-lg min-h-[88px] lg:min-h-0 ${
                       player.id === room.currentClueGiver
                         ? 'bg-yellow-100 border-yellow-500 ring-2 ring-yellow-300'
                         : player.id === currentPlayerId
@@ -1198,8 +1199,8 @@ export default function GamePage() {
                         : 'bg-gray-100 border-gray-300'
                     }`}
                   >
-                    <div className="flex items-center gap-4">
-                      <div className={`w-16 h-16 rounded-full flex items-center justify-center text-4xl font-bold shadow-md flex-shrink-0 ${
+                    <div className="flex items-center gap-4 lg:gap-2">
+                      <div className={`w-16 h-16 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-4xl lg:text-2xl font-bold shadow-md flex-shrink-0 ${
                         player.id === room.currentClueGiver
                           ? 'bg-yellow-400'
                           : player.id === currentPlayerId
@@ -1208,21 +1209,21 @@ export default function GamePage() {
                       }`}>
                         {player.avatar || player.name.charAt(0).toUpperCase()}
                       </div>
-                      <div className="flex-1">
-                        <p className="font-bold text-gray-900 flex flex-wrap items-center gap-2 text-base sm:text-lg">
-                          {player.name}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-gray-900 flex flex-wrap items-center gap-2 lg:gap-1 text-base sm:text-lg lg:text-sm">
+                          <span className="truncate">{player.name}</span>
                           {player.id === currentPlayerId && (
-                            <span className="text-xs sm:text-sm bg-purple-700 text-white px-3 py-1 rounded-full font-extrabold">
+                            <span className="text-xs sm:text-sm lg:text-xs bg-purple-700 text-white px-3 py-1 lg:px-2 lg:py-0.5 rounded-full font-extrabold">
                               You
                             </span>
                           )}
                           {player.id === room.currentClueGiver && (
-                            <span className="text-xs sm:text-sm bg-yellow-600 text-white px-3 py-1 rounded-full font-extrabold">
-                              🎤 Speaker
+                            <span className="text-xs sm:text-sm lg:text-xs bg-yellow-600 text-white px-3 py-1 lg:px-2 lg:py-0.5 rounded-full font-extrabold">
+                              🎤
                             </span>
                           )}
                         </p>
-                        <p className="text-sm sm:text-base text-gray-700 font-medium mt-1">
+                        <p className="text-sm sm:text-base lg:text-xs text-gray-700 font-medium mt-1 lg:mt-0">
                           <span className="font-bold">{Math.round(player.score)} pts</span>
                         </p>
                       </div>
@@ -1233,23 +1234,23 @@ export default function GamePage() {
             </div>
 
             {/* Game Info */}
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-5 sm:p-6">
-              <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Game Info</h3>
-              <div className="space-y-4 text-sm sm:text-base">
-                <div className="flex justify-between items-center py-2 border-b-2 border-gray-200">
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-5 sm:p-6 lg:p-4">
+              <h3 className="text-lg sm:text-xl lg:text-base font-bold text-gray-900 mb-4 lg:mb-2">Game Info</h3>
+              <div className="space-y-4 lg:space-y-2 text-sm sm:text-base lg:text-xs">
+                <div className="flex justify-between items-center py-2 lg:py-1 border-b-2 border-gray-200">
                   <span className="text-gray-700 font-medium">Your Role:</span>
-                  <span className="font-black text-gray-900 text-base sm:text-lg">
+                  <span className="font-black text-gray-900 text-base sm:text-lg lg:text-sm">
                     {isSpeaker ? '🎤 Speaker' : '🎯 Guesser'}
                   </span>
                 </div>
-                <div className="flex justify-between items-center py-2 border-b-2 border-gray-200">
+                <div className="flex justify-between items-center py-2 lg:py-1 border-b-2 border-gray-200">
                   <span className="text-gray-700 font-medium">Clues Given:</span>
-                  <span className="font-black text-gray-900 text-base sm:text-lg">{clueHistory.length}</span>
+                  <span className="font-black text-gray-900 text-base sm:text-lg lg:text-sm">{clueHistory.length}</span>
                 </div>
                 {!isSpeaker && (
-                  <div className="flex justify-between items-center py-2">
+                  <div className="flex justify-between items-center py-2 lg:py-1">
                     <span className="text-gray-700 font-medium">Your Guesses:</span>
-                    <span className="font-black text-gray-900 text-base sm:text-lg">
+                    <span className="font-black text-gray-900 text-base sm:text-lg lg:text-sm">
                       {guessesUsed} / {maxGuesses}
                     </span>
                   </div>

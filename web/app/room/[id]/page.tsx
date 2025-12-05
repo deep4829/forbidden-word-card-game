@@ -316,168 +316,179 @@ export default function RoomPage() {
   }
 
   return (
-    <div className="min-h-screen min-h-dvh overflow-y-auto bg-gradient-to-br from-indigo-500 to-purple-600 p-3 sm:p-4 md:p-6 py-6 sm:py-8 pb-24">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen min-h-dvh overflow-y-auto lg:overflow-hidden lg:h-screen lg:max-h-screen bg-gradient-to-br from-indigo-500 to-purple-600 p-3 sm:p-4 md:p-6 py-6 sm:py-8 pb-24 lg:pb-6 lg:flex lg:flex-col">
+      <div className="max-w-4xl mx-auto lg:flex lg:flex-col lg:flex-1 lg:overflow-hidden lg:w-full">
         {/* Header Section */}
-        <div className="bg-white rounded-lg sm:rounded-2xl shadow-2xl p-4 sm:p-6 md:p-8 mb-4 sm:mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6 mb-4 sm:mb-6">
+        <div className="bg-white rounded-lg sm:rounded-2xl shadow-2xl p-4 sm:p-6 md:p-8 lg:p-4 mb-4 sm:mb-6 lg:mb-3 lg:flex-shrink-0">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6 lg:gap-3 mb-4 sm:mb-6 lg:mb-3">
             <div className="min-w-0">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1 sm:mb-2">Game Lobby</h1>
-              <p className="text-sm sm:text-base text-gray-600">Waiting for players to join...</p>
+              <h1 className="text-2xl sm:text-3xl lg:text-xl font-bold text-gray-800 mb-1 sm:mb-2 lg:mb-0">Game Lobby</h1>
+              <p className="text-sm sm:text-base lg:text-xs text-gray-600">Waiting for players to join...</p>
             </div>
             <button
               onClick={() => { play('click'); router.push('/join'); }}
-              className="px-3 sm:px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm sm:text-base whitespace-nowrap"
+              className="px-3 sm:px-4 lg:px-3 py-2 lg:py-1 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm sm:text-base lg:text-xs whitespace-nowrap"
             >
               Leave Room
             </button>
           </div>
 
-          {/* Room ID Display */}
-          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg sm:rounded-xl p-4 sm:p-6 border-2 border-indigo-200 mb-3 sm:mb-4">
-            <p className="text-xs sm:text-sm font-medium text-gray-600 mb-2">Room ID</p>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
-              <code className="text-lg sm:text-2xl font-bold text-indigo-600 tracking-wider flex-1 break-all">
-                {roomId}
-              </code>
-              <button
-                onClick={copyRoomId}
-                className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium text-sm whitespace-nowrap w-full sm:w-auto"
-              >
-                {copySuccess && shareMethod !== 'link' ? '✓ Copied!' : '📋 Copy ID'}
-              </button>
-            </div>
-            <p className="text-xs sm:text-sm text-gray-500">
-              Share this ID with friends to invite them to the game
-            </p>
-          </div>
-
-          {/* Invite Link Display */}
-          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg sm:rounded-xl p-4 sm:p-6 border-2 border-green-200">
-            <p className="text-xs sm:text-sm font-medium text-gray-600 mb-2 sm:mb-3">📩 Shareable Invite Link</p>
-            <div className="space-y-2 sm:space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <input
-                  type="text"
-                  value={inviteUrl}
-                  readOnly
-                  className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs sm:text-sm text-gray-600 truncate min-w-0"
-                />
+          {/* Room ID and Invite Link - Side by side on desktop */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
+            {/* Room ID Display */}
+            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg sm:rounded-xl p-4 sm:p-6 lg:p-3 border-2 border-indigo-200">
+              <p className="text-xs sm:text-sm lg:text-xs font-medium text-gray-600 mb-2 lg:mb-1">Room ID</p>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 lg:gap-2 mb-2 sm:mb-3 lg:mb-1">
+                <code className="text-lg sm:text-2xl lg:text-base font-bold text-indigo-600 tracking-wider flex-1 break-all">
+                  {roomId}
+                </code>
                 <button
-                  onClick={copyInviteLink}
-                  className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm whitespace-nowrap w-full sm:w-auto"
+                  onClick={copyRoomId}
+                  className="px-3 sm:px-4 lg:px-2 py-2 lg:py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium text-sm lg:text-xs whitespace-nowrap w-full sm:w-auto"
                 >
-                  {copySuccess && shareMethod === 'link' ? '✓ Copied!' : 'Copy Link'}
+                  {copySuccess && shareMethod !== 'link' ? '✓ Copied!' : '📋 Copy ID'}
                 </button>
               </div>
-              {isShareAPIAvailable && (
-                <button
-                  onClick={shareInviteLink}
-                  className="w-full px-3 sm:px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm"
-                >
-                  🔗 Share Invite
-                </button>
-              )}
+              <p className="text-xs sm:text-sm lg:text-xs text-gray-500 hidden lg:block">
+                Share this ID with friends
+              </p>
+              <p className="text-xs sm:text-sm text-gray-500 lg:hidden">
+                Share this ID with friends to invite them to the game
+              </p>
             </div>
-            <p className="text-xs sm:text-sm text-gray-500 mt-2 sm:mt-3">
-              Share this link directly with friends - they'll join the room automatically!
-            </p>
+
+            {/* Invite Link Display */}
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg sm:rounded-xl p-4 sm:p-6 lg:p-3 border-2 border-green-200">
+              <p className="text-xs sm:text-sm lg:text-xs font-medium text-gray-600 mb-2 sm:mb-3 lg:mb-1">📩 Shareable Invite Link</p>
+              <div className="space-y-2 sm:space-y-3 lg:space-y-1">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 lg:gap-1">
+                  <input
+                    type="text"
+                    value={inviteUrl}
+                    readOnly
+                    className="flex-1 px-3 lg:px-2 py-2 lg:py-1 bg-white border border-gray-300 rounded-lg text-xs sm:text-sm lg:text-xs text-gray-600 truncate min-w-0"
+                  />
+                  <button
+                    onClick={copyInviteLink}
+                    className="px-3 sm:px-4 lg:px-2 py-2 lg:py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm lg:text-xs whitespace-nowrap w-full sm:w-auto"
+                  >
+                    {copySuccess && shareMethod === 'link' ? '✓ Copied!' : 'Copy Link'}
+                  </button>
+                </div>
+                {isShareAPIAvailable && (
+                  <button
+                    onClick={shareInviteLink}
+                    className="w-full px-3 sm:px-4 lg:px-2 py-2 lg:py-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm lg:text-xs"
+                  >
+                    🔗 Share Invite
+                  </button>
+                )}
+              </div>
+              <p className="text-xs sm:text-sm lg:text-xs text-gray-500 mt-2 sm:mt-3 lg:mt-1 hidden lg:block">
+                Share link for instant join
+              </p>
+              <p className="text-xs sm:text-sm text-gray-500 mt-2 sm:mt-3 lg:hidden">
+                Share this link directly with friends - they'll join the room automatically!
+              </p>
+            </div>
           </div>
         </div>
 
         {/* Error Message */}
         {error && (
           <div className="bg-red-50 border-2 border-red-200 rounded-lg sm:rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
-            <p className="text-red-700 text-center font-medium text-sm sm:text-base">{error}</p>
+            <p className="text-red-700 text-center font-medium text-sm sm:text-base lg:text-xs">{error}</p>
           </div>
         )}
 
-        {room && isRoomCreator && !room.gameStarted && (
-          <div className="bg-white rounded-lg sm:rounded-2xl shadow-2xl p-4 sm:p-6 md:p-8 mb-4 sm:mb-6">
-            <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4">Game Settings</h3>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex-1">
-                <p className="text-sm sm:text-base text-gray-600 mb-2">Rounds to play</p>
-                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                  {ROUND_OPTIONS.map((value) => (
-                    <button
-                      key={value}
-                      onClick={() => handleRoundsChange(value)}
-                      disabled={room.maxRounds === value}
-                      className={`py-2 rounded-lg font-semibold text-sm transition-colors border-2 ${
-                        selectedRounds === value
-                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg'
-                          : 'bg-white text-gray-700 border-gray-200 hover:border-indigo-400'
-                      } ${room.maxRounds === value ? 'cursor-default opacity-80' : ''}`}
-                    >
-                      {value}
-                    </button>
-                  ))}
+        {/* Scrollable content area on desktop */}
+        <div className="lg:flex-1 lg:overflow-y-auto lg:pr-2 desktop-scroll space-y-4 sm:space-y-6 lg:space-y-3">
+          {room && isRoomCreator && !room.gameStarted && (
+            <div className="bg-white rounded-lg sm:rounded-2xl shadow-2xl p-4 sm:p-6 md:p-8 lg:p-4">
+              <h3 className="text-lg sm:text-xl lg:text-base font-bold text-gray-800 mb-4 lg:mb-2">Game Settings</h3>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 lg:gap-2">
+                <div className="flex-1">
+                  <p className="text-sm sm:text-base lg:text-xs text-gray-600 mb-2 lg:mb-1">Rounds to play</p>
+                  <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-9 gap-2 lg:gap-1">
+                    {ROUND_OPTIONS.map((value) => (
+                      <button
+                        key={value}
+                        onClick={() => handleRoundsChange(value)}
+                        disabled={room.maxRounds === value}
+                        className={`py-2 lg:py-1 rounded-lg font-semibold text-sm lg:text-xs transition-colors border-2 lg:border ${
+                          selectedRounds === value
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg'
+                            : 'bg-white text-gray-700 border-gray-200 hover:border-indigo-400'
+                        } ${room.maxRounds === value ? 'cursor-default opacity-80' : ''}`}
+                      >
+                        {value}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="w-full sm:w-auto">
+                  <label htmlFor="customRounds" className="block text-sm lg:text-xs font-medium text-gray-600 mb-2 lg:mb-1">
+                    Custom
+                  </label>
+                  <input
+                    id="customRounds"
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={selectedRounds}
+                    onChange={(e) => handleRoundsChange(Number(e.target.value))}
+                    className="w-full sm:w-28 lg:w-20 px-3 lg:px-2 py-2 lg:py-1 border-2 lg:border border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none text-center text-sm lg:text-xs"
+                  />
                 </div>
               </div>
-              <div className="w-full sm:w-auto">
-                <label htmlFor="customRounds" className="block text-sm font-medium text-gray-600 mb-2">
-                  Custom
-                </label>
-                <input
-                  id="customRounds"
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={selectedRounds}
-                  onChange={(e) => handleRoundsChange(Number(e.target.value))}
-                  className="w-full sm:w-28 px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none text-center"
-                />
+              <p className="text-xs text-gray-500 mt-3 lg:mt-2">Max 20 rounds. Settings lock once the game starts.</p>
+            </div>
+          )}
+
+          {/* Players Section */}
+          <div className="bg-white rounded-lg sm:rounded-2xl shadow-2xl p-4 sm:p-6 md:p-8 lg:p-4">
+            <div className="flex items-center justify-between mb-4 sm:mb-6 lg:mb-2">
+              <h2 className="text-xl sm:text-2xl lg:text-base font-bold text-gray-800">Players</h2>
+              <div className="flex items-center gap-2 lg:gap-1 px-3 sm:px-4 lg:px-2 py-2 lg:py-1 bg-indigo-100 rounded-full">
+                <span className="text-xl sm:text-2xl lg:text-base font-bold text-indigo-600">
+                  {room?.players.length || 0}
+                </span>
+                <span className="text-xs sm:text-sm lg:text-xs text-gray-600 font-medium">/ 2+</span>
               </div>
             </div>
-            <p className="text-xs sm:text-sm text-gray-500 mt-3">Max 20 rounds. Settings lock once the game starts.</p>
-          </div>
-        )}
 
-        {/* Players Section */}
-        <div className="bg-white rounded-lg sm:rounded-2xl shadow-2xl p-4 sm:p-6 md:p-8 mb-4 sm:mb-6">
-          <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Players</h2>
-            <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-indigo-100 rounded-full">
-              <span className="text-xl sm:text-2xl font-bold text-indigo-600">
-                {room?.players.length || 0}
-              </span>
-              <span className="text-xs sm:text-sm text-gray-600 font-medium">/ 2+</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 sm:gap-4">
-            {room?.players.map((player, index) => (
-              <div
-                key={player.id}
-                className={`p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 transition-all ${
-                  player.id === currentPlayerId
-                    ? 'bg-indigo-50 border-indigo-300'
-                    : 'bg-gray-50 border-gray-200'
-                }`}
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-xl sm:text-2xl font-bold flex-shrink-0 ${
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-2">
+              {room?.players.map((player, index) => (
+                <div
+                  key={player.id}
+                  className={`p-3 sm:p-4 lg:p-2 rounded-lg sm:rounded-xl lg:rounded-lg border-2 lg:border transition-all ${
+                    player.id === currentPlayerId
+                      ? 'bg-indigo-50 border-indigo-300'
+                      : 'bg-gray-50 border-gray-200'
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 lg:gap-2 lg:flex-row">
+                    <div className="flex items-center gap-3 lg:gap-2 min-w-0 flex-1">
+                      <div className={`w-10 h-10 sm:w-12 sm:h-12 lg:w-8 lg:h-8 rounded-full flex items-center justify-center text-xl sm:text-2xl lg:text-base font-bold flex-shrink-0 ${
                       index === 0 ? 'bg-yellow-500' : 'bg-indigo-500'
                     }`}>
                       {player.avatar || player.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-gray-800 flex items-center gap-2 flex-wrap text-sm sm:text-base">
-                        {player.name}
+                      <p className="font-semibold text-gray-800 flex items-center gap-2 lg:gap-1 flex-wrap text-sm sm:text-base lg:text-xs">
+                        <span className="truncate">{player.name}</span>
                         {player.id === currentPlayerId && (
-                          <span className="text-xs bg-indigo-600 text-white px-2 py-1 rounded-full whitespace-nowrap">
+                          <span className="text-xs lg:text-[10px] bg-indigo-600 text-white px-2 py-1 lg:px-1 lg:py-0.5 rounded-full whitespace-nowrap">
                             You
                           </span>
                         )}
                         {index === 0 && (
-                          <span className="text-xs bg-yellow-500 text-white px-2 py-1 rounded-full whitespace-nowrap">
+                          <span className="text-xs lg:text-[10px] bg-yellow-500 text-white px-2 py-1 lg:px-1 lg:py-0.5 rounded-full whitespace-nowrap">
                             Host
                           </span>
                         )}
                       </p>
-                      <p className="text-xs sm:text-sm text-gray-500">
+                      <p className="text-xs sm:text-sm lg:text-xs text-gray-500">
                         {player.isReady ? '✓ Ready' : 'Waiting...'}
                       </p>
                     </div>
@@ -485,7 +496,7 @@ export default function RoomPage() {
                   {player.id === currentPlayerId && (
                     <button
                       onClick={openEditModal}
-                      className="px-3 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors whitespace-nowrap font-medium w-full sm:w-auto"
+                      className="px-3 lg:px-2 py-2 lg:py-1 bg-indigo-600 text-white text-sm lg:text-xs rounded-lg hover:bg-indigo-700 transition-colors whitespace-nowrap font-medium w-full sm:w-auto lg:w-auto"
                     >
                       ✏️ Edit
                     </button>
@@ -494,19 +505,19 @@ export default function RoomPage() {
               </div>
             ))}
 
-            {/* Empty Slots - Only show if less than 4 players */}
+            {/* Empty Slots - Only show if less than 4 players, hidden on desktop */}
             {room && room.players.length < 4 && Array.from({ length: 4 - (room?.players.length || 0) }).map((_, index) => (
               <div
                 key={`empty-${index}`}
-                className="p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-dashed border-gray-300 bg-gray-50"
+                className="p-3 sm:p-4 lg:p-2 rounded-lg sm:rounded-xl lg:rounded-lg border-2 lg:border border-dashed border-gray-300 bg-gray-50 lg:hidden"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gray-300 flex items-center justify-center text-gray-500 flex-shrink-0 text-lg sm:text-xl">
+                <div className="flex items-center gap-3 lg:gap-2">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-8 lg:h-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-500 flex-shrink-0 text-lg sm:text-xl lg:text-base">
                     ?
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-gray-400 text-sm sm:text-base">Waiting for player...</p>
-                    <p className="text-xs sm:text-sm text-gray-400">Empty slot</p>
+                    <p className="font-semibold text-gray-400 text-sm sm:text-base lg:text-xs">Waiting for player...</p>
+                    <p className="text-xs sm:text-sm lg:text-xs text-gray-400">Empty slot</p>
                   </div>
                 </div>
               </div>
@@ -514,59 +525,60 @@ export default function RoomPage() {
           </div>
         </div>
 
-        {/* Start Game Button */}
-        {canStartGame && (
-          <div className="bg-white rounded-lg sm:rounded-2xl shadow-2xl p-4 sm:p-8 mb-4 sm:mb-6">
-            <button
-              onClick={handleStartGame}
-              className="w-full py-4 sm:py-6 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-lg sm:text-2xl font-bold rounded-lg sm:rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all transform hover:scale-105 shadow-lg"
-            >
-              🎮 Start Game
-            </button>
-            <p className="text-center text-gray-600 mt-2 sm:mt-4 text-xs sm:text-sm">
-              All players are ready! Click to begin the game.
-            </p>
-          </div>
-        )}
+          {/* Start Game Button */}
+          {canStartGame && (
+            <div className="bg-white rounded-lg sm:rounded-2xl shadow-2xl p-4 sm:p-8 lg:p-4">
+              <button
+                onClick={handleStartGame}
+                className="w-full py-4 sm:py-6 lg:py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-lg sm:text-2xl lg:text-base font-bold rounded-lg sm:rounded-xl lg:rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all transform hover:scale-105 shadow-lg"
+              >
+                🎮 Start Game
+              </button>
+              <p className="text-center text-gray-600 mt-2 sm:mt-4 lg:mt-2 text-xs sm:text-sm lg:text-xs">
+                All players are ready! Click to begin the game.
+              </p>
+            </div>
+          )}
 
-        {/* Waiting Message */}
-        {room && room.players.length < 2 && (
-          <div className="bg-white rounded-lg sm:rounded-2xl shadow-2xl p-6 sm:p-8 text-center mb-4 sm:mb-6">
-            <div className="text-5xl sm:text-6xl md:text-7xl mb-3 sm:mb-4">⏳</div>
-            <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-1 sm:mb-2">
-              Waiting for {2 - room.players.length} more player{2 - room.players.length !== 1 ? 's' : ''}
-            </h3>
-            <p className="text-sm sm:text-base text-gray-600">
-              Share the room ID with your friend to get started! (Minimum 2 players)
-            </p>
-          </div>
-        )}
+          {/* Waiting Message */}
+          {room && room.players.length < 2 && (
+            <div className="bg-white rounded-lg sm:rounded-2xl shadow-2xl p-6 sm:p-8 lg:p-4 text-center">
+              <div className="text-5xl sm:text-6xl md:text-7xl lg:text-4xl mb-3 sm:mb-4 lg:mb-2">⏳</div>
+              <h3 className="text-lg sm:text-xl lg:text-sm font-bold text-gray-800 mb-1 sm:mb-2 lg:mb-1">
+                Waiting for {2 - room.players.length} more player{2 - room.players.length !== 1 ? 's' : ''}
+              </h3>
+              <p className="text-sm sm:text-base lg:text-xs text-gray-600">
+                Share the room ID with your friend to get started! (Minimum 2 players)
+              </p>
+            </div>
+          )}
 
-        {/* Ready to Start Message */}
-        {room && room.players.length >= 2 && room.players.length < 4 && !canStartGame && (
-          <div className="bg-white rounded-lg sm:rounded-2xl shadow-2xl p-6 sm:p-8 text-center mb-4 sm:mb-6">
-            <div className="text-5xl sm:text-6xl md:text-7xl mb-3 sm:mb-4">✅</div>
-            <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-1 sm:mb-2">
-              Ready to Play!
-            </h3>
-            <p className="text-sm sm:text-base text-gray-600">
-              You have {room.players.length} player{room.players.length !== 1 ? 's' : ''}. The host can start the game anytime.
-            </p>
-          </div>
-        )}
+          {/* Ready to Start Message */}
+          {room && room.players.length >= 2 && room.players.length < 4 && !canStartGame && (
+            <div className="bg-white rounded-lg sm:rounded-2xl shadow-2xl p-6 sm:p-8 lg:p-4 text-center">
+              <div className="text-5xl sm:text-6xl md:text-7xl lg:text-4xl mb-3 sm:mb-4 lg:mb-2">✅</div>
+              <h3 className="text-lg sm:text-xl lg:text-sm font-bold text-gray-800 mb-1 sm:mb-2 lg:mb-1">
+                Ready to Play!
+              </h3>
+              <p className="text-sm sm:text-base lg:text-xs text-gray-600">
+                You have {room.players.length} player{room.players.length !== 1 ? 's' : ''}. The host can start the game anytime.
+              </p>
+            </div>
+          )}
 
-        {/* Info Message for Non-Host with Enough Players */}
-        {room && room.players.length >= 2 && !isRoomCreator && !canStartGame && (
-          <div className="bg-white rounded-lg sm:rounded-2xl shadow-2xl p-6 sm:p-8 text-center">
-            <div className="text-5xl sm:text-6xl md:text-7xl mb-3 sm:mb-4">🎯</div>
-            <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-1 sm:mb-2">
-              Ready to Play!
-            </h3>
-            <p className="text-sm sm:text-base text-gray-600">
-              Waiting for the host to start the game...
-            </p>
-          </div>
-        )}
+          {/* Info Message for Non-Host with Enough Players */}
+          {room && room.players.length >= 2 && !isRoomCreator && !canStartGame && (
+            <div className="bg-white rounded-lg sm:rounded-2xl shadow-2xl p-6 sm:p-8 lg:p-4 text-center">
+              <div className="text-5xl sm:text-6xl md:text-7xl lg:text-4xl mb-3 sm:mb-4 lg:mb-2">🎯</div>
+              <h3 className="text-lg sm:text-xl lg:text-sm font-bold text-gray-800 mb-1 sm:mb-2 lg:mb-1">
+                Ready to Play!
+              </h3>
+              <p className="text-sm sm:text-base lg:text-xs text-gray-600">
+                Waiting for the host to start the game...
+              </p>
+            </div>
+          )}
+        </div>
 
         {/* Edit Profile Modal */}
         {currentPlayer && (

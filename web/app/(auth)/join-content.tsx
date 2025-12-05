@@ -152,35 +152,35 @@ export default function JoinContent() {
   };
 
   return (
-    <div className="min-h-screen min-h-dvh overflow-y-auto bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center p-4 py-8">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen min-h-dvh overflow-y-auto lg:overflow-hidden lg:h-screen lg:max-h-screen bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center p-4 py-8 lg:py-4">
+      <div className="w-full max-w-md lg:max-w-lg">
         {/* Logo/Title */}
-        <div className="text-center mb-8">
-          <h1 className="text-5xl font-bold text-white mb-2">🎮</h1>
-          <h2 className="text-4xl font-bold text-white mb-2">Forbidden Word</h2>
-          <p className="text-indigo-100 text-lg">Game Lobby</p>
+        <div className="text-center mb-8 lg:mb-4">
+          <h1 className="text-5xl lg:text-3xl font-bold text-white mb-2 lg:mb-1">🎮</h1>
+          <h2 className="text-4xl lg:text-2xl font-bold text-white mb-2 lg:mb-1">Forbidden Word</h2>
+          <p className="text-indigo-100 text-lg lg:text-sm">Game Lobby</p>
         </div>
 
         {/* Connection Status */}
-        <div className={`mb-6 p-3 rounded-lg text-center font-medium ${isConnected ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+        <div className={`mb-6 lg:mb-3 p-3 lg:p-2 rounded-lg text-center font-medium text-sm lg:text-xs ${isConnected ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
           }`}>
           {isConnected ? '✅ Connected to server' : '⏳ Connecting...'}
         </div>
 
         {/* Main Card */}
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
+        <div className="bg-white rounded-2xl lg:rounded-xl shadow-2xl p-8 lg:p-5">
           {/* Menu Mode */}
           {mode === 'menu' && (
             <div>
-              <h3 className="text-2xl font-bold text-gray-800 mb-6 text-center">Welcome!</h3>
-              <div className="space-y-4">
+              <h3 className="text-2xl lg:text-xl font-bold text-gray-800 mb-6 lg:mb-4 text-center">Welcome!</h3>
+              <div className="space-y-4 lg:space-y-3">
                 <button
                   onClick={() => {
                     setMode('create');
                     setError('');
                     try { play('click'); } catch (e) {}
                   }}
-                  className="w-full py-4 px-6 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-lg rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all transform hover:scale-105 shadow-lg"
+                  className="w-full py-4 lg:py-3 px-6 lg:px-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-lg lg:text-base rounded-xl lg:rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all transform hover:scale-105 shadow-lg"
                 >
                   ➕ Create Room
                 </button>
@@ -190,7 +190,7 @@ export default function JoinContent() {
                     setError('');
                     try { play('click'); } catch (e) {}
                   }}
-                  className="w-full py-4 px-6 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold text-lg rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all transform hover:scale-105 shadow-lg"
+                  className="w-full py-4 lg:py-3 px-6 lg:px-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold text-lg lg:text-base rounded-xl lg:rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all transform hover:scale-105 shadow-lg"
                 >
                   🚪 Join Room
                 </button>
@@ -206,14 +206,14 @@ export default function JoinContent() {
                   setMode('menu');
                   setError('');
                 }}
-                className="text-indigo-600 hover:text-indigo-700 font-medium mb-4"
+                className="text-indigo-600 hover:text-indigo-700 font-medium mb-4 lg:mb-2 text-sm lg:text-xs"
               >
                 ← Back
               </button>
-              <h3 className="text-2xl font-bold text-gray-800 mb-6">Create Room</h3>
-              <form onSubmit={handleCreateRoom} className="space-y-4">
+              <h3 className="text-2xl lg:text-lg font-bold text-gray-800 mb-6 lg:mb-3">Create Room</h3>
+              <form onSubmit={handleCreateRoom} className="space-y-4 lg:space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm lg:text-xs font-medium text-gray-700 mb-2 lg:mb-1">
                     Your Name
                   </label>
                   <input
@@ -221,31 +221,31 @@ export default function JoinContent() {
                     value={playerName}
                     onChange={(e) => setPlayerName(e.target.value)}
                     placeholder="Enter your name"
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none text-gray-900 placeholder-gray-500"
+                    className="w-full px-4 lg:px-3 py-3 lg:py-2 border-2 lg:border border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none text-gray-900 placeholder-gray-500 text-base lg:text-sm"
                     disabled={isLoading}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm lg:text-xs font-medium text-gray-700 mb-2 lg:mb-1">
                     Choose Avatar
                   </label>
-                  <div className="flex items-center gap-3">
-                    <div className="text-4xl">{playerAvatar}</div>
+                  <div className="flex items-center gap-3 lg:gap-2">
+                    <div className="text-4xl lg:text-2xl">{playerAvatar}</div>
                     <button
                       type="button"
                       onClick={() => setPlayerAvatar(getRandomAvatar())}
-                      className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors font-medium"
+                      className="px-4 lg:px-3 py-2 lg:py-1 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors font-medium text-sm lg:text-xs"
                     >
                       🔄 Random
                     </button>
                   </div>
-                  <div className="mt-3 grid grid-cols-5 gap-2">
+                  <div className="mt-3 lg:mt-2 grid grid-cols-5 lg:grid-cols-7 gap-2 lg:gap-1">
                     {AVATARS.map((avatar, idx) => (
                       <button
                         key={idx}
                         type="button"
                         onClick={() => { setPlayerAvatar(avatar); try { play('click'); } catch (e) {} }}
-                        className={`text-2xl p-2 rounded-lg transition-all ${ playerAvatar === avatar ? 'bg-indigo-500 scale-125' : 'bg-gray-200 hover:bg-gray-300'}`}
+                        className={`text-2xl lg:text-xl p-2 lg:p-1 rounded-lg transition-all ${ playerAvatar === avatar ? 'bg-indigo-500 scale-125 lg:scale-110' : 'bg-gray-200 hover:bg-gray-300'}`}
                       >
                         {avatar}
                       </button>
@@ -253,14 +253,14 @@ export default function JoinContent() {
                   </div>
                 </div>
                 {error && (
-                  <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm font-medium">
+                  <div className="p-3 lg:p-2 bg-red-100 text-red-700 rounded-lg text-sm lg:text-xs font-medium">
                     {error}
                   </div>
                 )}
                 <button
                   type="submit"
                   disabled={isLoading || !isConnected}
-                  className="w-full py-3 px-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-3 lg:py-2 px-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-base lg:text-sm rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoading ? 'Creating...' : 'Create Room'}
                 </button>
@@ -276,14 +276,14 @@ export default function JoinContent() {
                   setMode('menu');
                   setError('');
                 }}
-                className="text-indigo-600 hover:text-indigo-700 font-medium mb-4"
+                className="text-indigo-600 hover:text-indigo-700 font-medium mb-4 lg:mb-2 text-sm lg:text-xs"
               >
                 ← Back
               </button>
-              <h3 className="text-2xl font-bold text-gray-800 mb-6">Join Room</h3>
-              <form onSubmit={handleJoinRoom} className="space-y-4">
+              <h3 className="text-2xl lg:text-lg font-bold text-gray-800 mb-6 lg:mb-3">Join Room</h3>
+              <form onSubmit={handleJoinRoom} className="space-y-4 lg:space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm lg:text-xs font-medium text-gray-700 mb-2 lg:mb-1">
                     Your Name
                   </label>
                   <input
@@ -291,31 +291,31 @@ export default function JoinContent() {
                     value={playerName}
                     onChange={(e) => setPlayerName(e.target.value)}
                     placeholder="Enter your name"
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none text-gray-900 placeholder-gray-500"
+                    className="w-full px-4 lg:px-3 py-3 lg:py-2 border-2 lg:border border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none text-gray-900 placeholder-gray-500 text-base lg:text-sm"
                     disabled={isLoading}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm lg:text-xs font-medium text-gray-700 mb-2 lg:mb-1">
                     Choose Avatar
                   </label>
-                  <div className="flex items-center gap-3">
-                    <div className="text-4xl">{playerAvatar}</div>
+                  <div className="flex items-center gap-3 lg:gap-2">
+                    <div className="text-4xl lg:text-2xl">{playerAvatar}</div>
                     <button
                       type="button"
                       onClick={() => setPlayerAvatar(getRandomAvatar())}
-                      className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors font-medium"
+                      className="px-4 lg:px-3 py-2 lg:py-1 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors font-medium text-sm lg:text-xs"
                     >
                       🔄 Random
                     </button>
                   </div>
-                  <div className="mt-3 grid grid-cols-5 gap-2">
+                  <div className="mt-3 lg:mt-2 grid grid-cols-5 lg:grid-cols-7 gap-2 lg:gap-1">
                     {AVATARS.map((avatar, idx) => (
                       <button
                         key={idx}
                         type="button"
                         onClick={() => setPlayerAvatar(avatar)}
-                        className={`text-2xl p-2 rounded-lg transition-all ${playerAvatar === avatar ? 'bg-indigo-500 scale-125' : 'bg-gray-200 hover:bg-gray-300'}`}
+                        className={`text-2xl lg:text-xl p-2 lg:p-1 rounded-lg transition-all ${playerAvatar === avatar ? 'bg-indigo-500 scale-125 lg:scale-110' : 'bg-gray-200 hover:bg-gray-300'}`}
                       >
                         {avatar}
                       </button>
@@ -323,7 +323,7 @@ export default function JoinContent() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm lg:text-xs font-medium text-gray-700 mb-2 lg:mb-1">
                     Room ID
                   </label>
                   <input
@@ -331,19 +331,19 @@ export default function JoinContent() {
                     value={roomId}
                     onChange={(e) => setRoomId(e.target.value.toUpperCase())}
                     placeholder="Enter room ID or paste invite link"
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none font-mono text-center text-gray-900 placeholder-gray-500"
+                    className="w-full px-4 lg:px-3 py-3 lg:py-2 border-2 lg:border border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none font-mono text-center text-gray-900 placeholder-gray-500 text-base lg:text-sm"
                     disabled={isLoading}
                   />
                 </div>
                 {error && (
-                  <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm font-medium">
+                  <div className="p-3 lg:p-2 bg-red-100 text-red-700 rounded-lg text-sm lg:text-xs font-medium">
                     {error}
                   </div>
                 )}
                 <button
                   type="submit"
                   disabled={isLoading || !isConnected}
-                  className="w-full py-3 px-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-3 lg:py-2 px-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold text-base lg:text-sm rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoading ? 'Joining...' : 'Join Room'}
                 </button>
@@ -353,8 +353,8 @@ export default function JoinContent() {
         </div>
 
         {/* Footer */}
-        <div className="text-center mt-8 text-indigo-100">
-          <p className="text-sm">
+        <div className="text-center mt-8 lg:mt-4 text-indigo-100">
+          <p className="text-sm lg:text-xs">
             Play, guess, and have fun with friends! 🎉
           </p>
         </div>
