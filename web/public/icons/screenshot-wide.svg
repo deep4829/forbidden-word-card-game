@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1280" height="720" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e1b4b"/>
+      <stop offset="50%" style="stop-color:#581c87"/>
+      <stop offset="100%" style="stop-color:#312e81"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <rect x="340" y="160" width="600" height="400" rx="20" fill="white" fill-opacity="0.95"/>
+  <text x="640" y="100" text-anchor="middle" fill="white" font-size="42" font-weight="bold" font-family="Arial">Forbidden Word Game</text>
+  <text x="640" y="340" text-anchor="middle" fill="#7c3aed" font-size="72">🎮</text>
+  <text x="640" y="420" text-anchor="middle" fill="#1f2937" font-size="28" font-weight="bold" font-family="Arial">The Ultimate Word Guessing Game</text>
+  <text x="640" y="460" text-anchor="middle" fill="#6b7280" font-size="20" font-family="Arial">Play with friends online!</text>
+</svg>

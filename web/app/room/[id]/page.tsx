@@ -288,7 +288,7 @@ export default function RoomPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600">
+      <div className="min-h-screen min-h-dvh overflow-y-auto flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-white mb-4"></div>
           <p className="text-white text-xl font-semibold">Loading room...</p>
@@ -299,7 +299,7 @@ export default function RoomPage() {
 
   if (error && !room) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 p-4">
+      <div className="min-h-screen min-h-dvh overflow-y-auto flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 p-4">
         <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
           <div className="text-red-500 text-6xl mb-4">⚠️</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-4">Room Error</h2>
@@ -316,7 +316,7 @@ export default function RoomPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-500 to-purple-600 p-3 sm:p-4 md:p-6 py-6 sm:py-8">
+    <div className="min-h-screen min-h-dvh overflow-y-auto bg-gradient-to-br from-indigo-500 to-purple-600 p-3 sm:p-4 md:p-6 py-6 sm:py-8 pb-24">
       <div className="max-w-4xl mx-auto">
         {/* Header Section */}
         <div className="bg-white rounded-lg sm:rounded-2xl shadow-2xl p-4 sm:p-6 md:p-8 mb-4 sm:mb-6">

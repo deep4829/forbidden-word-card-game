@@ -693,7 +693,7 @@ export default function GamePage() {
 
   if (!room) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-purple-900">
+      <div className="min-h-screen min-h-dvh overflow-y-auto flex items-center justify-center bg-gradient-to-br from-slate-900 to-purple-900">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-white mb-4"></div>
           <p className="text-white text-xl font-semibold">Loading game...</p>
@@ -703,7 +703,7 @@ export default function GamePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 p-3 sm:p-4 md:p-6">
+    <div className="min-h-screen min-h-dvh overflow-y-auto bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 p-3 sm:p-4 md:p-6 pb-24">
       <div className="max-w-7xl mx-auto">
         {/* ScoreBoard Component */}
         <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-4 sm:p-6 mb-4 sm:mb-6">

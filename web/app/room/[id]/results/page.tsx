@@ -83,7 +83,7 @@ export default function ResultsPage() {
 
   if (missingData && !results) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 p-6">
+      <div className="min-h-screen min-h-dvh overflow-y-auto flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 p-6">
         <div className="bg-white/90 backdrop-blur rounded-2xl shadow-2xl p-8 max-w-lg w-full text-center space-y-4">
           <h1 className="text-2xl font-bold text-gray-900">No Results Found</h1>
           <p className="text-gray-600">
@@ -102,7 +102,7 @@ export default function ResultsPage() {
 
   if (!results) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 p-6">
+      <div className="min-h-screen min-h-dvh overflow-y-auto flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 p-6">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-white mb-4"></div>
           <p className="text-white text-xl font-semibold">Loading results...</p>
@@ -115,7 +115,7 @@ export default function ResultsPage() {
   const isPlayerWinner = winner && playerMeta && winner.name === playerMeta.name && winner.avatar === playerMeta.avatar;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 p-4 sm:p-6">
+    <div className="min-h-screen min-h-dvh overflow-y-auto bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 p-4 sm:p-6 pb-24">
       <div className="max-w-5xl mx-auto space-y-6">
         <header className="bg-white/95 backdrop-blur rounded-2xl shadow-2xl p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>

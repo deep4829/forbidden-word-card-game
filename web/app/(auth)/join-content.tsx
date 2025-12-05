@@ -152,7 +152,7 @@ export default function JoinContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center p-4">
+    <div className="min-h-screen min-h-dvh overflow-y-auto bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center p-4 py-8">
       <div className="w-full max-w-md">
         {/* Logo/Title */}
         <div className="text-center mb-8">

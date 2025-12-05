@@ -5,7 +5,7 @@
   --foreground: #171717;
 }
 
-@theme inline {
+:root[data-theme="inline"] {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
@@ -19,8 +19,74 @@
   }
 }
 
+/* PWA and Mobile Scrolling Fixes */
+html {
+  height: 100%;
+  overflow-x: hidden;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+  min-height: 100dvh; /* Dynamic viewport height for mobile */
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+}
+
+/* Ensure main content areas can scroll properly */
+main,
+.main-content {
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-y: auto;
+}
+
+/* Fix for PWA standalone mode */
+@media all and (display-mode: standalone) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* Ensure cards and containers don't cause horizontal overflow */
+.card,
+.container,
+[class*="rounded-"] {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Mobile-first scrollable containers */
+@media (max-width: 640px) {
+  .min-h-screen {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+  
+  /* Prevent content clipping on small screens */
+  .overflow-hidden {
+    overflow: visible;
+    overflow-x: hidden;
+  }
+}
+
+/* Smooth scrolling for the entire page */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Hide scrollbar but keep functionality (optional, looks cleaner on mobile) */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }
