@@ -563,6 +563,14 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // NEW: Check if another player with the same name already exists in the room
+    const duplicateName = room.players.find((p) => p.name.toLowerCase() === playerName.toLowerCase());
+    if (duplicateName) {
+      socket.emit('error', { message: `Player name "${playerName}" is already taken in this room. Please choose a different name.` });
+      console.log(`[join-room] Duplicate name rejected: ${playerName} in room ${roomId}`);
+      return;
+    }
+
     // New player joining
     const player = createPlayer(socket.id, playerName, playerAvatar);
     const added = addPlayerToRoom(room, player);
