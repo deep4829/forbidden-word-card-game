@@ -506,6 +506,33 @@ export default function GamePage() {
       }
     };
 
+    // NEW: Handle reset-for-next-game event - redirect all players back to lobby
+    const onResetForNextGame = (data: { roomId: string }) => {
+      console.log('🔄 Reset for next game requested for room:', data.roomId);
+      
+      // Clear game state
+      setRoom(null);
+      setGamePhase(null);
+      setPlayerHasGuessed(false);
+      setRoundActive(false);
+      setRole(null);
+      setClueHistory([]);
+      setCurrentCard(null);
+      stopRef.current();
+
+      try {
+        localStorage.removeItem(resultsStorageKey);
+        localStorage.removeItem(`game_${roomId}`);
+      } catch (e) {
+        // ignore
+      }
+
+      // Navigate back to lobby
+      if (data.roomId === roomId) {
+        router.push(`/room/${roomId}`);
+      }
+    };
+
     socket.on('room-updated', onRoomUpdated);
     socket.on('game-state-synced', onGameStateSynced);
     socket.on('card-assigned', onCardAssigned);
@@ -518,6 +545,7 @@ export default function GamePage() {
     socket.on('phase-changed', onPhaseChanged);
     socket.on('error', onError);
     socket.on('game-ended', onGameEnded);
+    socket.on('reset-for-next-game', onResetForNextGame);
     
     console.log('🔗 Socket listeners registered for room:', roomId, 'player:', currentPlayerId);
 
@@ -534,6 +562,7 @@ export default function GamePage() {
       socket.off('phase-changed', onPhaseChanged);
       socket.off('error', onError);
       socket.off('game-ended', onGameEnded);
+      socket.off('reset-for-next-game', onResetForNextGame);
     };
   }, [roomId, currentPlayerId, clueHistory.length, router, resultsStorageKey]);
 

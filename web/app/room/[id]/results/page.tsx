@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import socket from '@/lib/socket';
 import HowToPlayButton from '@/app/components/HowToPlayButton';
 import type { Player, Room } from '@/types/game';
 
@@ -66,6 +67,8 @@ export default function ResultsPage() {
     } catch (error) {
       // ignore storage issues for navigation
     }
+    // Emit event to server to notify all players and reset room state
+    socket.emit('reset-for-next-game', { roomId });
     router.push(`/room/${roomId}`);
   };
 

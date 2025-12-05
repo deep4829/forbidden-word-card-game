@@ -1046,6 +1046,49 @@ io.on('connection', (socket) => {
     }
   });
 
+  // NEW: Handle reset-for-next-game event - reset room state and notify all players
+  socket.on('reset-for-next-game', (data: { roomId: string }) => {
+    const { roomId } = data;
+    const room = getRoom(roomId);
+
+    if (!room) {
+      socket.emit('error', { message: 'Room not found' });
+      return;
+    }
+
+    console.log(`[reset-for-next-game] Resetting room ${roomId} for next game`);
+
+    // Reset game state
+    room.gameStarted = false;
+    room.roundInProgress = false;
+    room.currentCard = null;
+    room.currentClueGiver = null;
+
+    // Clear all round tracking data
+    roomRounds.delete(roomId);
+    roomClueCount.delete(roomId);
+    roomCluesGiven.delete(roomId);
+    roomGuessesGiven.delete(roomId);
+    roomCluePhase.delete(roomId);
+    roomPlayersWhoGuessed.delete(roomId);
+
+    // Reset player scores and state
+    room.players.forEach((p) => {
+      p.score = 0;
+      p.guessesUsed = 0;
+      p.isReady = false;
+    });
+
+    // Update activity timestamp
+    updateRoomActivity(roomId);
+
+    // Broadcast reset event to all players in the room
+    io.to(roomId).emit('reset-for-next-game', { roomId });
+    io.to(roomId).emit('room-updated', room);
+
+    console.log(`[reset-for-next-game] Room ${roomId} reset complete. Players notified.`);
+  });
+
   // Handle disconnect
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`);
