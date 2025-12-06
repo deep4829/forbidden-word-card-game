@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import SoundToggle from "@/app/components/SoundToggle";
 import { PWAProvider } from "@/app/components/PWAProvider";
-import InstallAppButton from "@/app/components/InstallAppButton";
 import OfflineIndicator from "@/app/components/OfflineIndicator";
 
 const geistSans = Geist({
@@ -98,9 +97,6 @@ export default function RootLayout({
           </header>
           
           {children}
-          
-          {/* Install App Button - now handled per-page (join and lobby) */}
-          <InstallAppButton />
         </PWAProvider>
       </body>
     </html>
