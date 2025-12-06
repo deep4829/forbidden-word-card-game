@@ -317,6 +317,14 @@ export default function RoomPage() {
 
   return (
     <div className="h-screen h-dvh max-h-screen max-h-dvh overflow-hidden bg-gradient-to-br from-indigo-500 to-purple-600 p-2 sm:p-3 md:p-4 flex flex-col">
+      <style>{`
+        @media (max-width: 640px) {
+          header {
+            top: auto !important;
+            bottom: 1rem !important;
+          }
+        }
+      `}</style>
       <div className="max-w-4xl mx-auto flex flex-col flex-1 overflow-hidden w-full">
         {/* Header Section */}
         <div className="bg-white rounded-lg sm:rounded-xl shadow-xl p-3 sm:p-4 lg:p-4 mb-2 sm:mb-3 flex-shrink-0">
@@ -576,8 +584,10 @@ export default function RoomPage() {
           />
         )}
 
-        {/* How to Play Button */}
-        <HowToPlayButton />
+        {/* How to Play Button - Bottom Left on Mobile */}
+        <div className="fixed bottom-4 left-4 sm:static z-40">
+          <HowToPlayButton />
+        </div>
       </div>
     </div>
   );

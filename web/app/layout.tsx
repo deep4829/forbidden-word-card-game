@@ -91,7 +91,7 @@ export default function RootLayout({
           {/* Offline Indicator - shows when offline */}
           <OfflineIndicator />
           
-          {/* Persistent Header with Sound Toggle */}
+          {/* Persistent Header with Sound Toggle - Top right */}
           <header className="fixed top-0 right-0 z-50 p-4">
             <SoundToggle />
           </header>
