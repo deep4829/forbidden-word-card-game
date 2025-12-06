@@ -24,7 +24,7 @@ export default function InstallAppButton() {
   return (
     <button
       onClick={installApp}
-      className="fixed bottom-4 left-4 z-50 flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-xl shadow-lg hover:from-purple-700 hover:to-indigo-700 transition-all transform hover:scale-105 animate-pulse"
+      className="fixed top-20 right-4 sm:bottom-4 sm:left-4 sm:top-auto z-50 flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-xl shadow-lg hover:from-purple-700 hover:to-indigo-700 transition-all transform hover:scale-105 animate-pulse"
       aria-label="Install App"
     >
       <span className="text-xl">📲</span>
