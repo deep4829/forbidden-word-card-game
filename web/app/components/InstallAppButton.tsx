@@ -21,10 +21,25 @@ export default function InstallAppButton() {
     return null;
   }
 
+  // For join page, render as inline button positioned with logo
+  if (isJoinPage) {
+    return (
+      <button
+        onClick={installApp}
+        className="w-full py-2 sm:py-3 px-4 sm:px-6 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-xl shadow-lg hover:from-purple-700 hover:to-indigo-700 transition-all transform hover:scale-105 animate-pulse text-sm sm:text-base flex items-center justify-center gap-2"
+        aria-label="Install App"
+      >
+        <span className="text-lg">📲</span>
+        <span>Install App</span>
+      </button>
+    );
+  }
+
+  // For lobby page, render as floating button at top right
   return (
     <button
       onClick={installApp}
-      className="fixed top-20 right-4 sm:bottom-4 sm:left-4 sm:top-auto z-50 flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-xl shadow-lg hover:from-purple-700 hover:to-indigo-700 transition-all transform hover:scale-105 animate-pulse"
+      className="fixed top-20 right-4 z-50 flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-xl shadow-lg hover:from-purple-700 hover:to-indigo-700 transition-all transform hover:scale-105 animate-pulse"
       aria-label="Install App"
     >
       <span className="text-xl">📲</span>

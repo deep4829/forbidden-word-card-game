@@ -6,6 +6,7 @@ import socket from '@/lib/socket';
 import { useSound } from '@/lib/useSound';
 import { AVATARS, getRandomAvatar } from '@/lib/avatars';
 import HowToPlayButton from '@/app/components/HowToPlayButton';
+import InstallAppButton from '@/app/components/InstallAppButton';
 
 export default function JoinContent() {
   const router = useRouter();
@@ -158,7 +159,8 @@ export default function JoinContent() {
         <div className="text-center mb-3 sm:mb-4 lg:mb-4 flex-shrink-0">
           <h1 className="text-3xl sm:text-4xl lg:text-3xl font-bold text-white mb-1">🎮</h1>
           <h2 className="text-2xl sm:text-3xl lg:text-2xl font-bold text-white mb-1">Forbidden Word</h2>
-          <p className="text-indigo-100 text-sm sm:text-base lg:text-sm">Game Lobby</p>
+          <p className="text-indigo-100 text-sm sm:text-base lg:text-sm mb-3 sm:mb-4">Game Lobby</p>
+          <InstallAppButton />
         </div>
 
         {/* Connection Status */}
