@@ -5,7 +5,6 @@ import { useParams, useRouter } from 'next/navigation';
 import socket from '@/lib/socket';
 import { useSpeechRecognition } from '@/lib/speech';
 import playSound from '@/lib/sounds';
-import HowToPlayButton from '@/app/components/HowToPlayButton';
 import type { Room, Player, Card } from '@/types/game';
 
 interface ClueHistory {
@@ -1257,9 +1256,6 @@ export default function GamePage() {
             </div>
           </div>
         </div>
-
-        {/* How to Play Component */}
-        <HowToPlayButton />
       </div>
     </div>
   );

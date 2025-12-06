@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import socket from '@/lib/socket';
-import HowToPlayButton from '@/app/components/HowToPlayButton';
 import type { Player, Room } from '@/types/game';
 
 interface StoredResults {
@@ -216,8 +215,6 @@ export default function ResultsPage() {
             </p>
           </section>
         </div>
-
-        <HowToPlayButton />
       </div>
     </div>
   );
