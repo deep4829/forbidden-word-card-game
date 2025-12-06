@@ -552,7 +552,7 @@ export default function RoomPage() {
             </div>
           )}
 
-          {/* Info Message for Non-Host with Enough Players */}
+          {/* Info Message for Non-Host with Enough Players
           {room && room.players.length >= 2 && !isRoomCreator && !canStartGame && (
             <div className="bg-white rounded-lg sm:rounded-2xl shadow-lg sm:shadow-2xl p-3 sm:p-8 lg:p-4 text-center flex-shrink-0">
               <div className="text-2xl sm:text-6xl md:text-7xl lg:text-4xl mb-1 sm:mb-4 lg:mb-2">🎯</div>
@@ -563,7 +563,7 @@ export default function RoomPage() {
                 Waiting for the host to start the game...
               </p>
             </div>
-          )}
+          )} */}
         </div>
 
         {/* Edit Profile Modal */}
