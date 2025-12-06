@@ -10,7 +10,7 @@ export default function HowToPlayButton({ position = 'top-left' }: HowToPlayButt
   const [showHowToPlay, setShowHowToPlay] = useState(false);
 
   const positionClasses = position === 'bottom-left' 
-    ? 'fixed bottom-4 left-4 sm:bottom-auto sm:left-auto sm:top-6 sm:left-6' 
+    ? 'fixed bottom-4 left-4 sm:bottom-auto sm:top-6 sm:left-6' 
     : 'fixed top-6 left-6';
 
   return (
