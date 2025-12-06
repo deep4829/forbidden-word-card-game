@@ -99,7 +99,7 @@ export default function RootLayout({
           
           {children}
           
-          {/* Install App Button - shows when installable */}
+          {/* Install App Button - now handled per-page (join and lobby) */}
           <InstallAppButton />
         </PWAProvider>
       </body>
