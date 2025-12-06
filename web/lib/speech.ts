@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ensureRNNoiseInitialized, isRNNoiseReady, processAudioFrame, getFrameSize } from './noiseFilter';
 
 interface SpeechRecognitionConfig {
   onResult?: (transcript: string) => void;
@@ -6,6 +7,7 @@ interface SpeechRecognitionConfig {
   lang?: string;
   continuous?: boolean;
   interimResults?: boolean;
+  useNoiseFilter?: boolean;
 }
 
 interface SpeechRecognitionHook {
@@ -34,6 +36,7 @@ export function useSpeechRecognition(
     lang = 'en-US',
     continuous = true,
     interimResults = true,
+    useNoiseFilter = true,
   } = config;
 
   const [isListening, setIsListening] = useState(false);
@@ -51,6 +54,9 @@ export function useSpeechRecognition(
   const isMobileRef = useRef<boolean>(false);
   // Track if user called stop (to avoid restart loops)
   const userStoppedRef = useRef<boolean>(false);
+  // RNNoise refs
+  const noiseFilterInitializedRef = useRef<boolean>(false);
+  const audioSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
 
   useEffect(() => {
     // Check if browser supports Speech Recognition
@@ -65,6 +71,19 @@ export function useSpeechRecognition(
 
     console.log('Initializing Speech Recognition');
     setIsSupported(true);
+
+    // Initialize RNNoise for noise filtering if enabled
+    if (useNoiseFilter && !noiseFilterInitializedRef.current) {
+      ensureRNNoiseInitialized()
+        .then(() => {
+          noiseFilterInitializedRef.current = true;
+          console.log('✅ RNNoise noise filter ready for audio processing');
+        })
+        .catch((error) => {
+          console.warn('⚠️ RNNoise initialization failed, continuing without noise filter:', error);
+          noiseFilterInitializedRef.current = false;
+        });
+    }
 
     // Initialize Speech Recognition
     const recognition = new SpeechRecognition();
@@ -208,6 +227,12 @@ export function useSpeechRecognition(
         setTranscript('');
         accumulatedTranscriptRef.current = '';
         setIsFallbackMode(false);
+
+        // Initialize audio processing with RNNoise if available and enabled
+        if (useNoiseFilter && isRNNoiseReady()) {
+          initializeAudioProcessing();
+        }
+
         console.log('✓ Recognition started successfully');
       } catch (error) {
         console.error('❌ Error starting speech recognition:', error);
@@ -219,6 +244,58 @@ export function useSpeechRecognition(
       }
     } else {
       console.warn('Cannot start - already listening or no recognition ref');
+    }
+  };
+
+  // Initialize audio processing with RNNoise noise filtering
+  const initializeAudioProcessing = async () => {
+    try {
+      // Request microphone access
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+
+      // Create audio context
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioContextRef.current = audioContext;
+
+      // Create audio source from microphone stream
+      const audioSource = audioContext.createMediaStreamSource(stream);
+      audioSourceRef.current = audioSource;
+
+      // Create ScriptProcessorNode for audio processing
+      const bufferSize = getFrameSize();
+      const processor = audioContext.createScriptProcessor(bufferSize, 1, 1);
+      processorRef.current = processor;
+
+      // Process audio frames with RNNoise
+      processor.onaudioprocess = (event: AudioProcessingEvent) => {
+        try {
+          const inputData = event.inputBuffer.getChannelData(0);
+          const outputData = event.outputBuffer.getChannelData(0);
+
+          // Apply RNNoise noise filter
+          if (isRNNoiseReady()) {
+            const filtered = processAudioFrame(new Float32Array(inputData));
+            outputData.set(filtered);
+          } else {
+            // Fallback: no filtering
+            outputData.set(inputData);
+          }
+        } catch (error) {
+          console.error('Error processing audio:', error);
+          // Fallback to original audio on error
+          event.outputBuffer.getChannelData(0).set(event.inputBuffer.getChannelData(0));
+        }
+      };
+
+      // Connect audio graph: microphone -> processor -> destination (speakers/system)
+      audioSource.connect(processor);
+      processor.connect(audioContext.destination);
+
+      console.log('✅ Audio processing with RNNoise initialized');
+    } catch (error) {
+      console.warn('⚠️ Could not initialize audio processing:', error);
+      // Continue without audio processing - speech recognition will still work
     }
   };
 
@@ -245,10 +322,38 @@ export function useSpeechRecognition(
       }
     }
 
+    // Clean up audio processing resources
+    cleanupAudioProcessing();
+
     // Clean up media stream if in fallback mode
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach(track => track.stop());
       mediaStreamRef.current = null;
+    }
+  };
+
+  // Cleanup audio processing and RNNoise resources
+  const cleanupAudioProcessing = () => {
+    try {
+      // Disconnect and stop audio processing
+      if (processorRef.current && audioSourceRef.current) {
+        audioSourceRef.current.disconnect(processorRef.current);
+        processorRef.current.disconnect();
+        processorRef.current = null;
+        audioSourceRef.current = null;
+      }
+
+      // Stop and close audio context
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {
+          // Ignore errors on close
+        });
+        audioContextRef.current = null;
+      }
+
+      console.log('✅ Audio processing resources cleaned up');
+    } catch (error) {
+      console.warn('⚠️ Error during audio cleanup:', error);
     }
   };
 
