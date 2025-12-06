@@ -704,6 +704,16 @@ export default function GamePage() {
 
   return (
     <div className="h-dvh overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 p-2 sm:p-4 md:p-6 pb-16 sm:pb-24 lg:pb-6 flex flex-col">
+      <style>{`
+        @media (max-width: 640px) {
+          header {
+            top: auto !important;
+            bottom: 1rem !important;
+            left: 1rem !important;
+            right: auto !important;
+          }
+        }
+      `}</style>
       <div className="max-w-7xl mx-auto flex flex-col flex-1 overflow-hidden w-full">
         {/* ScoreBoard Component */}
         <div className="bg-white rounded-lg sm:rounded-2xl shadow-lg sm:shadow-2xl p-2 sm:p-6 lg:p-4 mb-2 sm:mb-6 lg:mb-4 flex-shrink-0">
