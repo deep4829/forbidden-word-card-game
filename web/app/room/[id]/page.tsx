@@ -585,9 +585,7 @@ export default function RoomPage() {
         )}
 
         {/* How to Play Button - Bottom Left on Mobile */}
-        <div className="fixed bottom-4 left-4 sm:static z-40">
-          <HowToPlayButton />
-        </div>
+        <HowToPlayButton position="bottom-left" />
       </div>
     </div>
   );

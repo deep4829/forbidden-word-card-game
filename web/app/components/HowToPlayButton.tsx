@@ -2,15 +2,23 @@
 
 import { useState } from 'react';
 
-export default function HowToPlayButton() {
+interface HowToPlayButtonProps {
+  position?: 'top-left' | 'bottom-left';
+}
+
+export default function HowToPlayButton({ position = 'top-left' }: HowToPlayButtonProps) {
   const [showHowToPlay, setShowHowToPlay] = useState(false);
+
+  const positionClasses = position === 'bottom-left' 
+    ? 'fixed bottom-4 left-4 sm:bottom-auto sm:left-auto sm:top-6 sm:left-6' 
+    : 'fixed top-6 left-6';
 
   return (
     <>
-      {/* How to Play Button - Fixed Top Left */}
+      {/* How to Play Button */}
       <button
         onClick={() => setShowHowToPlay(true)}
-        className="fixed top-6 left-6 z-[999] w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-2xl flex items-center justify-center text-2xl sm:text-3xl bg-indigo-600 text-white ring-4 ring-indigo-300 hover:bg-indigo-700 transition-all hover:scale-110"
+        className={`${positionClasses} z-[999] w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-2xl flex items-center justify-center text-2xl sm:text-3xl bg-indigo-600 text-white ring-4 ring-indigo-300 hover:bg-indigo-700 transition-all hover:scale-110`}
         title="How to Play"
         aria-label="How to Play"
       >
