@@ -510,6 +510,14 @@ io.on('connection', (socket) => {
     if (existingPlayer) {
       const previousSocketId = existingPlayer.id;
       
+      // IMPORTANT: Only allow reconnection if the old socket is still disconnected
+      // If the old socket is still active/connected, reject this as a duplicate name attempt
+      if (previousSocketId !== socket.id && io.sockets.sockets.get(previousSocketId)) {
+        socket.emit('error', { message: `Player name "${playerName}" is already in use in this room. Please choose a different name.` });
+        console.log(`[join-room] Duplicate name+avatar rejected (player still connected): ${playerName} in room ${roomId}`);
+        return;
+      }
+      
       // This is a reconnection case - same name+avatar means the same player is reconnecting
       // Allow the reconnection by updating their socket ID
       console.log(`[rejoin] Player ${playerName} reconnecting. Old socket: ${previousSocketId}, New socket: ${socket.id}`);
