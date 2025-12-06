@@ -775,8 +775,9 @@ io.on('connection', (socket) => {
       if (speaker) {
         speaker.score -= 5;
 
-        // Broadcast forbidden word detection
-        io.to(roomId).emit('forbidden-detected', {
+        // Send forbidden word detection ONLY to the speaker, not broadcast to all
+        // This prevents guessers from seeing the forbidden words and spoiling the game
+        socket.emit('forbidden-detected', {
           playerId: socket.id,
           playerName: speaker.name,
           violations,

@@ -354,10 +354,11 @@ export default function GamePage() {
       });
     };
 
-    // Forbidden detected event
+    // Forbidden detected event - Only visible to the speaker who said it
     const onForbiddenDetected = (data: ForbiddenDetected) => {
+      // Only show to the speaker (this is a private message now)
       showFeedback(
-        `Forbidden word detected! ${data.playerName} said: ${data.violations.join(', ')} (${data.penalty} points)`,
+        `⚠️ Forbidden word detected! You said: ${data.violations.join(', ')} (-5 points penalty)`,
         'error'
       );
       // Stop microphone if the current player said the forbidden word
