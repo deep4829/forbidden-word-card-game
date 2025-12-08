@@ -31,7 +31,9 @@ async function initializeRNNoise(): Promise<void> {
   initPromise = new Promise(async (resolve, reject) => {
     try {
       // Dynamically import the Jitsi RNNoise WASM module
-      const { RNNoise } = await import('@jitsi/rnnoise-wasm');
+      // @ts-ignore - suppress Turbopack dynamic import warning
+      const rnnoiseWasm = await import('@jitsi/rnnoise-wasm');
+      const { RNNoise } = rnnoiseWasm;
       
       // Initialize the RNNoise module
       rnnoiseModule = await RNNoise();
