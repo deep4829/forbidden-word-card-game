@@ -5,6 +5,9 @@ export interface Card {
   id: string;
   mainWord: string;
   forbiddenWords: string[];
+  mainWordHi?: string;
+  forbiddenWordsHi?: string[];
+  language?: 'en' | 'hi';
 }
 
 /**
@@ -31,4 +34,5 @@ export interface Room {
   gameStarted: boolean;
   roundInProgress: boolean;
   maxRounds: number;
+  language?: 'en' | 'hi';
 }

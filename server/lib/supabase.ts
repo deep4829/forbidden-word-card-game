@@ -48,13 +48,14 @@ export const supabase = new Proxy({} as ReturnType<typeof createClient>, {
 
 /**
  * Fetches all cards from Supabase
+ * @param language - The language for cards ('en' or 'hi')
  * @returns Array of cards from the database
  */
-export async function fetchAllCards(): Promise<Card[]> {
+export async function fetchAllCards(language: 'en' | 'hi' = 'en'): Promise<Card[]> {
   try {
     const { data, error } = await supabase
       .from('cards')
-      .select('id, main_word, forbidden_words');
+      .select('*');
 
     if (error) {
       console.error('Supabase error fetching cards:', error);
@@ -66,12 +67,17 @@ export async function fetchAllCards(): Promise<Card[]> {
       return [];
     }
 
-    // Transform database format to Card format
-    return data.map((card: any) => ({
-      id: card.id,
-      mainWord: card.main_word,
-      forbiddenWords: card.forbidden_words || [],
-    }));
+    // Transform database format to Card format - keep both English and Hindi versions
+    return data.map((card: any) => {
+      return {
+        id: card.id,
+        mainWord: card.main_word,
+        forbiddenWords: card.forbidden_words || [],
+        mainWordHi: card.main_word_hi,
+        forbiddenWordsHi: card.forbidden_words_hi,
+        language: language,
+      };
+    });
   } catch (error) {
     console.error('Error fetching cards from Supabase:', error);
     throw error;
@@ -94,17 +100,19 @@ export function shuffleArray<T>(array: T[]): T[] {
 
 /**
  * Fetches and shuffles cards from Supabase
+ * @param language - The language for cards ('en' or 'hi')
  * @returns Shuffled array of cards
  */
-export async function loadAndShuffleDeck(): Promise<Card[]> {
+export async function loadAndShuffleDeck(language: 'en' | 'hi' = 'en'): Promise<Card[]> {
   const now = Date.now();
+  const cacheKey = `cards_${language}`;
 
   if (!cachedCards || now >= cacheExpiresAt) {
-    const cards = await fetchAllCards();
+    const cards = await fetchAllCards(language);
     cachedCards = cards;
     cacheExpiresAt = now + cacheTtlMs;
     if (process.env.NODE_ENV !== 'test') {
-      console.log(`[supabase] Refreshed card cache with ${cards.length} cards (TTL ${cacheTtlMs}ms)`);
+      console.log(`[supabase] Refreshed ${language} card cache with ${cards.length} cards (TTL ${cacheTtlMs}ms)`);
     }
   }
 

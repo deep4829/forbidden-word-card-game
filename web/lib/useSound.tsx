@@ -4,14 +4,19 @@ import playSound, { default as _playSound } from './sounds';
 const STORAGE_KEY = 'fwg-muted';
 
 export function useSound() {
-  const [muted, setMuted] = useState<boolean>(() => {
+  const [mounted, setMounted] = useState(false);
+  const [muted, setMuted] = useState<boolean>(false);
+
+  // Initialize from localStorage only on client
+  useEffect(() => {
     try {
-      const v = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEY) : null;
-      return v === '1';
+      const v = window.localStorage.getItem(STORAGE_KEY);
+      setMuted(v === '1');
+      setMounted(true);
     } catch (e) {
-      return false;
+      setMounted(true);
     }
-  });
+  }, []);
 
   useEffect(() => {
     try {

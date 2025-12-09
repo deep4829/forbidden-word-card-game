@@ -22,6 +22,7 @@ export default function RoomPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
   const [selectedRounds, setSelectedRounds] = useState<number>(10);
+  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'hi'>('en');
   const ROUND_OPTIONS = [1, 2, 3, 5, 7, 10, 12, 15, 20];
 
   // Restore room data from localStorage on mount
@@ -38,6 +39,12 @@ export default function RoomPage() {
       } catch (e) {
         console.error('Failed to parse saved room data:', e);
       }
+    }
+
+    // Load saved language preference
+    const savedLanguage = localStorage.getItem('gameLanguage') as 'en' | 'hi' | null;
+    if (savedLanguage) {
+      setSelectedLanguage(savedLanguage);
     }
   }, [roomId]);
 
@@ -221,7 +228,7 @@ export default function RoomPage() {
     }
 
     play('start');
-    socket.emit('start-game', roomId);
+    socket.emit('start-game', { roomId, language: selectedLanguage });
   };
 
   const copyRoomId = async () => {
@@ -521,16 +528,54 @@ export default function RoomPage() {
 
           {/* Start Game Button */}
           {canStartGame && (
-            <div className="bg-white rounded-lg sm:rounded-2xl shadow-lg sm:shadow-2xl p-2 sm:p-8 lg:p-4 flex-shrink-0">
-              <button
-                onClick={handleStartGame}
-                className="w-full py-2 sm:py-6 lg:py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm sm:text-2xl lg:text-base font-bold rounded-lg sm:rounded-xl lg:rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all transform hover:scale-105 shadow-lg"
-              >
-                🎮 Start Game
-              </button>
-              <p className="text-center text-gray-600 mt-1 sm:mt-4 lg:mt-2 text-[10px] sm:text-sm lg:text-xs">
-                All players are ready! Click to begin the game.
-              </p>
+            <div className="space-y-4">
+              {/* Language Selection */}
+              <div className="bg-white rounded-lg sm:rounded-2xl shadow-lg sm:shadow-2xl p-2 sm:p-6 md:p-8 lg:p-4">
+                <h3 className="text-sm sm:text-xl lg:text-base font-bold text-gray-800 mb-3 sm:mb-4 lg:mb-3">Select Language</h3>
+                <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:gap-3">
+                  <button
+                    onClick={() => {
+                      setSelectedLanguage('en');
+                      localStorage.setItem('gameLanguage', 'en');
+                      play('click');
+                    }}
+                    className={`py-3 sm:py-4 lg:py-3 px-4 sm:px-6 lg:px-4 rounded-lg sm:rounded-xl lg:rounded-lg font-bold text-sm sm:text-lg lg:text-base transition-all ${
+                      selectedLanguage === 'en'
+                        ? 'bg-blue-600 text-white ring-2 ring-blue-300 shadow-md'
+                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                    }`}
+                  >
+                    🇬🇧 English
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedLanguage('hi');
+                      localStorage.setItem('gameLanguage', 'hi');
+                      play('click');
+                    }}
+                    className={`py-3 sm:py-4 lg:py-3 px-4 sm:px-6 lg:px-4 rounded-lg sm:rounded-xl lg:rounded-lg font-bold text-sm sm:text-lg lg:text-base transition-all ${
+                      selectedLanguage === 'hi'
+                        ? 'bg-orange-600 text-white ring-2 ring-orange-300 shadow-md'
+                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                    }`}
+                  >
+                    🇮🇳 हिंदी
+                  </button>
+                </div>
+              </div>
+
+              {/* Start Button */}
+              <div className="bg-white rounded-lg sm:rounded-2xl shadow-lg sm:shadow-2xl p-2 sm:p-8 lg:p-4 flex-shrink-0">
+                <button
+                  onClick={handleStartGame}
+                  className="w-full py-2 sm:py-6 lg:py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm sm:text-2xl lg:text-base font-bold rounded-lg sm:rounded-xl lg:rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all transform hover:scale-105 shadow-lg"
+                >
+                  🎮 Start Game
+                </button>
+                <p className="text-center text-gray-600 mt-1 sm:mt-4 lg:mt-2 text-[10px] sm:text-sm lg:text-xs">
+                  All players are ready! Click to begin the game.
+                </p>
+              </div>
             </div>
           )}
 

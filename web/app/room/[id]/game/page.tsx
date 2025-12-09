@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import socket from '@/lib/socket';
 import { useSpeechRecognition } from '@/lib/speech';
-import playSound from '@/lib/sounds';
+import { useSound } from '@/lib/useSound';
 import type { Room, Player, Card } from '@/types/game';
 
 interface ClueHistory {
@@ -222,10 +222,28 @@ export default function GamePage() {
   }, []);
 
   // Speech Recognition Hook with stable callbacks
+  const speechLanguage = room?.language === 'hi' ? 'hi-IN' : 'en-US';
   const { isListening, isSupported, transcript, start, stop } = useSpeechRecognition({
     onResult: handleSpeechResult,
     onError: handleSpeechError,
+    lang: speechLanguage,
   });
+
+  // Sound hook
+  const { play } = useSound();
+
+  // Helper function to get language-specific card content
+  const getCardWord = (card: Card | null): string => {
+    if (!card) return '';
+    const isHindi = room?.language === 'hi';
+    return isHindi && card.mainWordHi ? card.mainWordHi : card.mainWord;
+  };
+
+  const getCardForbiddenWords = (card: Card | null): string[] => {
+    if (!card) return [];
+    const isHindi = room?.language === 'hi';
+    return (isHindi && card.forbiddenWordsHi) ? card.forbiddenWordsHi : card.forbiddenWords;
+  };
 
   // Set current player ID when socket connects and attempt auto-rejoin
   useEffect(() => {
@@ -587,9 +605,9 @@ export default function GamePage() {
     setFeedbackType(type);
     // Play a short sound for feedback (non-blocking)
     try {
-      if (type === 'success') playSound('success');
-      else if (type === 'error') playSound('error');
-      else playSound('info');
+      if (type === 'success') play('success');
+      else if (type === 'error') play('error');
+      else play('info');
     } catch (e) {
       // ignore sound errors
     }
@@ -796,7 +814,7 @@ export default function GamePage() {
                           Target Word
                         </p>
                         <p className="text-white text-xl sm:text-5xl md:text-6xl lg:text-3xl font-black break-words">
-                          {currentCard.mainWord}
+                          {getCardWord(currentCard)}
                         </p>
                       </div>
 
@@ -806,7 +824,7 @@ export default function GamePage() {
                           🚫 Forbidden Words
                         </p>
                         <div className="grid grid-cols-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-1.5 sm:gap-3 lg:gap-2">
-                          {currentCard.forbiddenWords.map((word, index) => (
+                          {getCardForbiddenWords(currentCard).map((word, index) => (
                             <div
                               key={index}
                               className="bg-red-200 text-red-900 font-bold text-center py-1.5 px-1 sm:py-4 sm:px-4 lg:py-2 lg:px-2 rounded-md sm:rounded-lg border border-red-400 text-xs sm:text-lg lg:text-sm flex items-center justify-center shadow-sm sm:shadow-md"

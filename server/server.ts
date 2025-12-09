@@ -250,10 +250,26 @@ function cleanupExpiredRooms() {
   }
 }
 
+// Helper function to get language-specific main word from card
+function getCardWord(card: Card, language?: 'en' | 'hi'): string {
+  if (language === 'hi' && card.mainWordHi) {
+    return card.mainWordHi;
+  }
+  return card.mainWord;
+}
+
+// Helper function to get language-specific forbidden words from card
+function getCardForbiddenWords(card: Card, language?: 'en' | 'hi'): string[] {
+  if (language === 'hi' && card.forbiddenWordsHi) {
+    return card.forbiddenWordsHi;
+  }
+  return card.forbiddenWords;
+}
+
 // Helper function to remove player from room
 
 // Helper function to start game
-async function startGame(room: Room): Promise<boolean> {
+async function startGame(room: Room, language: 'en' | 'hi' = 'en'): Promise<boolean> {
   // Validate room size (must have at least 2 players)
   if (room.players.length < 2) {
     return false;
@@ -262,6 +278,9 @@ async function startGame(room: Room): Promise<boolean> {
   // Ensure max rounds is within supported range
   const sanitizedMaxRounds = Math.max(MIN_ROUNDS, Math.min(MAX_ROUNDS_LIMIT, room.maxRounds ?? DEFAULT_MAX_ROUNDS));
   room.maxRounds = sanitizedMaxRounds;
+  
+  // Set room language
+  room.language = language;
 
   // Initialize game state
   room.gameStarted = true;
@@ -278,7 +297,7 @@ async function startGame(room: Room): Promise<boolean> {
 
   try {
     // Load and shuffle deck for this room (now async from Supabase)
-    const deck = await loadAndShuffleDeck();
+    const deck = await loadAndShuffleDeck(language);
     if (!deck || deck.length === 0) {
       console.warn(`[startGame] Supabase returned no cards. Using fallback deck for room ${room.id}.`);
       const fallback: Card[] = [
@@ -310,7 +329,8 @@ async function drawNextCard(room: Room): Promise<Card | null> {
     // Ensure the deck is initialized if missing
     console.warn(`Deck for room ${room.id} is empty or missing. Reinitializing...`);
     try {
-      const newDeck = await loadAndShuffleDeck();
+      const language = room.language || 'en';
+      const newDeck = await loadAndShuffleDeck(language);
       roomDecks.set(room.id, newDeck);
       return newDeck.shift() || null;
     } catch (error) {
@@ -669,7 +689,18 @@ io.on('connection', (socket) => {
   });
 
   // Handle start-game event
-  socket.on('start-game', async (roomId: string) => {
+  socket.on('start-game', async (data: string | { roomId: string; language?: 'en' | 'hi' }) => {
+    // Handle both old format (just roomId string) and new format (object with language)
+    let roomId = '';
+    let language: 'en' | 'hi' = 'en';
+    
+    if (typeof data === 'string') {
+      roomId = data;
+    } else {
+      roomId = data.roomId;
+      language = data.language || 'en';
+    }
+    
     const room = getRoom(roomId);
 
     if (!room) {
@@ -684,8 +715,8 @@ io.on('connection', (socket) => {
     }
 
     // Start the game
-    console.log(`[socket] start-game requested for room ${roomId}`);
-    const started = await startGame(room);
+    console.log(`[socket] start-game requested for room ${roomId} with language ${language}`);
+    const started = await startGame(room, language);
 
     if (!started) {
       socket.emit('error', { message: 'Failed to start game' });
@@ -700,6 +731,7 @@ io.on('connection', (socket) => {
       roundNumber: roomRounds.get(roomId),
       currentClueGiver: room.currentClueGiver,
       phase: roomCluePhase.get(roomId), // NEW: Send the current phase
+      language: language, // NEW: Send the language
     });
 
     // Emit card-assigned only to the current speaker
@@ -710,7 +742,7 @@ io.on('connection', (socket) => {
       });
     }
 
-    console.log(`Game started in room ${roomId}, Speaker: ${room.currentClueGiver}`);
+    console.log(`Game started in room ${roomId}, Speaker: ${room.currentClueGiver}, Language: ${language}`);
   });
 
   // Handle speaker-transcript event
@@ -760,11 +792,10 @@ io.on('connection', (socket) => {
     }
     cluesSet.add(normalizedClue);
 
-    // Check for forbidden words
-    const violations = checkForbidden(transcript, [
-      room.currentCard.mainWord,
-      ...room.currentCard.forbiddenWords,
-    ]);
+    // Check for forbidden words (language-aware)
+    const mainWord = getCardWord(room.currentCard, room.language);
+    const forbiddenWords = getCardForbiddenWords(room.currentCard, room.language);
+    const violations = checkForbidden(transcript, [mainWord, ...forbiddenWords]);
 
     if (violations.length > 0) {
       // Remove the clue from the set since it was invalid (allow retry)
@@ -775,24 +806,27 @@ io.on('connection', (socket) => {
       if (speaker) {
         speaker.score -= 5;
 
-        // Send forbidden word detection ONLY to the speaker, not broadcast to all
-        // This prevents guessers from seeing the forbidden words and spoiling the game
+        // Send forbidden word detection ONLY to the speaker
+        // Tell them the clue contains forbidden words and they need to try again
         socket.emit('forbidden-detected', {
           playerId: socket.id,
           playerName: speaker.name,
           violations,
           penalty: -5,
+          message: `Your clue contains forbidden word(s): ${violations.join(', ')}. Try again! You lose 5 points.`,
         });
 
-        // Broadcast score update
+        // Broadcast score update to show penalty
         io.to(roomId).emit('score-updated', {
           playerId: socket.id,
           newScore: speaker.score,
           room,
         });
 
-        console.log(`Forbidden words detected in room ${roomId}: ${violations.join(', ')}`);
+        console.log(`Forbidden words detected in room ${roomId}: ${violations.join(', ')}. Clue rejected: "${transcript}"`);
       }
+      // DO NOT broadcast the clue - the speaker must try again
+      return;
     } else {
       // Valid clue - increment clue count
       const currentClueCount = (roomClueCount.get(roomId) || 0) + 1;
@@ -887,12 +921,14 @@ io.on('connection', (socket) => {
 
     // Check if guess matches target word using fuzzy matching
     // This handles spelling variations, phonetic similarities, and typos
-    if (isMatchingGuess(guess, room.currentCard.mainWord)) {
+    // Use language-specific main word for comparison
+    const targetWord = getCardWord(room.currentCard, room.language);
+    if (isMatchingGuess(guess, targetWord)) {
       // Correct guess!
       const clueCount = roomClueCount.get(roomId) || 0;
       const points = computePoints(clueCount);
       const activeCard = room.currentCard;
-      const targetWord = activeCard.mainWord;
+      // Note: targetWord is already set above to language-specific word
       const oldSpeakerId = room.currentClueGiver;
 
       let roundOutcome = {

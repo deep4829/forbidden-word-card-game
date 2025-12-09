@@ -11,13 +11,15 @@
     "start:dev": "ts-node server.ts",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "translate:cards": "ts-node scripts/translateCards.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@iamtraction/google-translate": "^2.0.1",
     "@supabase/supabase-js": "^2.86.0",
     "dotenv": "^16.6.1",
     "express": "^5.1.0",
