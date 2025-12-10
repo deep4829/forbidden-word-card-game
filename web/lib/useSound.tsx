@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import playSound, { default as _playSound } from './sounds';
 
 const STORAGE_KEY = 'fwg-muted';
@@ -6,12 +6,15 @@ const STORAGE_KEY = 'fwg-muted';
 export function useSound() {
   const [mounted, setMounted] = useState(false);
   const [muted, setMuted] = useState<boolean>(false);
+  const mutedRef = useRef(false);
 
   // Initialize from localStorage only on client
   useEffect(() => {
     try {
       const v = window.localStorage.getItem(STORAGE_KEY);
-      setMuted(v === '1');
+      const isMuted = v === '1';
+      setMuted(isMuted);
+      mutedRef.current = isMuted;
       setMounted(true);
     } catch (e) {
       setMounted(true);
@@ -19,6 +22,7 @@ export function useSound() {
   }, []);
 
   useEffect(() => {
+    mutedRef.current = muted;
     try {
       if (typeof window !== 'undefined') {
         window.localStorage.setItem(STORAGE_KEY, muted ? '1' : '0');
@@ -28,17 +32,24 @@ export function useSound() {
     }
   }, [muted]);
 
-  const toggle = useCallback(() => setMuted((m) => !m), []);
+  const toggle = useCallback(() => {
+    setMuted((m) => {
+      const newValue = !m;
+      mutedRef.current = newValue;
+      return newValue;
+    });
+  }, []);
 
   const play = useCallback((name: Parameters<typeof playSound>[0]) => {
-    if (!muted) {
+    // Use ref to get the most current muted state
+    if (!mutedRef.current) {
       try {
         playSound(name);
       } catch (e) {
-        // ignore
+        console.error('Sound playback error:', e);
       }
     }
-  }, [muted]);
+  }, []);
 
   return { muted, toggle, setMuted, play } as const;
 }
