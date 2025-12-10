@@ -1,54 +1,73 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
-import playSound, { default as _playSound } from './sounds';
+import { useEffect, useState, useCallback } from 'react';
+import playSound from './sounds';
 
 const STORAGE_KEY = 'fwg-muted';
 
-export function useSound() {
-  const [mounted, setMounted] = useState(false);
-  const [muted, setMuted] = useState<boolean>(false);
-  const mutedRef = useRef(false);
+// Singleton muted state - accessed across all component instances
+class SoundManager {
+  private muted: boolean = false;
 
-  // Initialize from localStorage only on client
-  useEffect(() => {
-    try {
-      const v = window.localStorage.getItem(STORAGE_KEY);
-      const isMuted = v === '1';
-      setMuted(isMuted);
-      mutedRef.current = isMuted;
-      setMounted(true);
-    } catch (e) {
-      setMounted(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    mutedRef.current = muted;
-    try {
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(STORAGE_KEY, muted ? '1' : '0');
-      }
-    } catch (e) {
-      // ignore
-    }
-  }, [muted]);
-
-  const toggle = useCallback(() => {
-    setMuted((m) => {
-      const newValue = !m;
-      mutedRef.current = newValue;
-      return newValue;
-    });
-  }, []);
-
-  const play = useCallback((name: Parameters<typeof playSound>[0]) => {
-    // Use ref to get the most current muted state
-    if (!mutedRef.current) {
+  constructor() {
+    // Initialize from localStorage if available
+    if (typeof window !== 'undefined') {
       try {
-        playSound(name);
+        const stored = window.localStorage.getItem(STORAGE_KEY);
+        this.muted = stored === '1';
+      } catch (e) {
+        this.muted = false;
+      }
+    }
+  }
+
+  isMuted(): boolean {
+    return this.muted;
+  }
+
+  setMuted(value: boolean): void {
+    this.muted = value;
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(STORAGE_KEY, value ? '1' : '0');
+      } catch (e) {
+        // ignore
+      }
+    }
+  }
+
+  playSound(name: string): void {
+    if (!this.muted) {
+      try {
+        playSound(name as any);
       } catch (e) {
         console.error('Sound playback error:', e);
       }
     }
+  }
+}
+
+// Single global instance
+const soundManager = new SoundManager();
+
+export function useSound() {
+  const [muted, setMutedState] = useState<boolean>(false);
+
+  // Initialize from manager on mount
+  useEffect(() => {
+    setMutedState(soundManager.isMuted());
+  }, []);
+
+  const setMuted = useCallback((value: boolean) => {
+    soundManager.setMuted(value);
+    setMutedState(value);
+  }, []);
+
+  const toggle = useCallback(() => {
+    const newValue = !soundManager.isMuted();
+    setMuted(newValue);
+  }, [setMuted]);
+
+  const play = useCallback((name: Parameters<typeof playSound>[0]) => {
+    soundManager.playSound(name);
   }, []);
 
   return { muted, toggle, setMuted, play } as const;
