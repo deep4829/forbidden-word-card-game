@@ -7,7 +7,7 @@ export interface Card {
   forbiddenWords: string[];
   mainWordHi?: string;
   forbiddenWordsHi?: string[];
-  language?: 'en' | 'hi';
+  language?: 'en' | 'hi' | 'kn';
 }
 
 /**
@@ -34,5 +34,5 @@ export interface Room {
   gameStarted: boolean;
   roundInProgress: boolean;
   maxRounds: number;
-  language?: 'en' | 'hi';
+  language?: 'en' | 'hi' | 'kn';
 }
