@@ -222,7 +222,7 @@ export default function GamePage() {
   }, []);
 
   // Speech Recognition Hook with stable callbacks
-  const speechLanguage = room?.language === 'hi' ? 'hi-IN' : 'en-US';
+  const speechLanguage = room?.language === 'hi' ? 'hi-IN' : room?.language === 'kn' ? 'kn-IN' : 'en-US';
   const { isListening, isSupported, transcript, start, stop } = useSpeechRecognition({
     onResult: handleSpeechResult,
     onError: handleSpeechError,
