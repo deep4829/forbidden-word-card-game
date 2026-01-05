@@ -67,6 +67,8 @@ console.log('Running tests...\n');
       console.log(`   Expected: "${guess}" ${expected ? 'SHOULD' : 'SHOULD NOT'} match "${target}"`);
       console.log(`   Got: ${result ? 'MATCH' : 'NO MATCH'}\n`);
     }
+  }
+
   console.log('\n===== TEST RESULTS =====');
   console.log(`✅ Passed: ${passed}/${testCases.length}`);
   console.log(`❌ Failed: ${failed}/${testCases.length}`);
@@ -81,4 +83,3 @@ console.log('Running tests...\n');
     process.exit(1);
   }
 })();
-}
