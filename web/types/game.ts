@@ -7,6 +7,8 @@ export interface Card {
   forbiddenWords: string[];
   mainWordHi?: string;
   forbiddenWordsHi?: string[];
+  mainWordKn?: string;
+  forbiddenWordsKn?: string[];
   language?: 'en' | 'hi' | 'kn';
 }
 
