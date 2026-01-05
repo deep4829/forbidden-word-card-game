@@ -51,7 +51,7 @@ export const supabase = new Proxy({} as ReturnType<typeof createClient>, {
  * @param language - The language for cards ('en' or 'hi')
  * @returns Array of cards from the database
  */
-export async function fetchAllCards(language: 'en' | 'hi' = 'en'): Promise<Card[]> {
+export async function fetchAllCards(language: 'en' | 'hi' | 'kn' = 'en'): Promise<Card[]> {
   try {
     const { data, error } = await supabase
       .from('cards')
@@ -67,7 +67,7 @@ export async function fetchAllCards(language: 'en' | 'hi' = 'en'): Promise<Card[
       return [];
     }
 
-    // Transform database format to Card format - keep both English and Hindi versions
+    // Transform database format to Card format - keep English, Hindi and Kannada versions
     return data.map((card: any) => {
       return {
         id: card.id,
@@ -75,6 +75,8 @@ export async function fetchAllCards(language: 'en' | 'hi' = 'en'): Promise<Card[
         forbiddenWords: card.forbidden_words || [],
         mainWordHi: card.main_word_hi,
         forbiddenWordsHi: card.forbidden_words_hi,
+        mainWordKn: card.main_word_kn,
+        forbiddenWordsKn: card.forbidden_words_kn,
         language: language,
       };
     });
@@ -103,7 +105,7 @@ export function shuffleArray<T>(array: T[]): T[] {
  * @param language - The language for cards ('en' or 'hi')
  * @returns Shuffled array of cards
  */
-export async function loadAndShuffleDeck(language: 'en' | 'hi' = 'en'): Promise<Card[]> {
+export async function loadAndShuffleDeck(language: 'en' | 'hi' | 'kn' = 'en'): Promise<Card[]> {
   const now = Date.now();
   const cacheKey = `cards_${language}`;
 

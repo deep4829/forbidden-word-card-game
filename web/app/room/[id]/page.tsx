@@ -22,7 +22,7 @@ export default function RoomPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
   const [selectedRounds, setSelectedRounds] = useState<number>(10);
-  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'hi'>('en');
+  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'hi' | 'kn'>('en');
   const ROUND_OPTIONS = [1, 2, 3, 5, 7, 10, 12, 15, 20];
 
   // Restore room data from localStorage on mount
@@ -560,6 +560,20 @@ export default function RoomPage() {
                     }`}
                   >
                     🇮🇳 हिंदी
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedLanguage('kn');
+                      localStorage.setItem('gameLanguage', 'kn');
+                      play('click');
+                    }}
+                    className={`py-3 sm:py-4 lg:py-3 px-4 sm:px-6 lg:px-4 rounded-lg sm:rounded-xl lg:rounded-lg font-bold text-sm sm:text-lg lg:text-base transition-all ${
+                      selectedLanguage === 'kn'
+                        ? 'bg-green-600 text-white ring-2 ring-green-300 shadow-md'
+                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                    }`}
+                  >
+                    🇮🇳 ಕನ್ನಡ
                   </button>
                 </div>
               </div>

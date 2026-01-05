@@ -222,7 +222,7 @@ export default function GamePage() {
   }, []);
 
   // Speech Recognition Hook with stable callbacks
-  const speechLanguage = room?.language === 'hi' ? 'hi-IN' : 'en-US';
+  const speechLanguage = room?.language === 'hi' ? 'hi-IN' : room?.language === 'kn' ? 'kn-IN' : 'en-US';
   const { isListening, isSupported, transcript, start, stop } = useSpeechRecognition({
     onResult: handleSpeechResult,
     onError: handleSpeechError,
@@ -236,13 +236,19 @@ export default function GamePage() {
   const getCardWord = (card: Card | null): string => {
     if (!card) return '';
     const isHindi = room?.language === 'hi';
-    return isHindi && card.mainWordHi ? card.mainWordHi : card.mainWord;
+    const isKannada = room?.language === 'kn';
+    if (isHindi && card.mainWordHi) return card.mainWordHi;
+    if (isKannada && card.mainWordKn) return card.mainWordKn;
+    return card.mainWord;
   };
 
   const getCardForbiddenWords = (card: Card | null): string[] => {
     if (!card) return [];
     const isHindi = room?.language === 'hi';
-    return (isHindi && card.forbiddenWordsHi) ? card.forbiddenWordsHi : card.forbiddenWords;
+    const isKannada = room?.language === 'kn';
+    if (isHindi && card.forbiddenWordsHi) return card.forbiddenWordsHi;
+    if (isKannada && card.forbiddenWordsKn) return card.forbiddenWordsKn;
+    return card.forbiddenWords;
   };
 
   // Set current player ID when socket connects and attempt auto-rejoin

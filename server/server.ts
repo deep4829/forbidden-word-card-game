@@ -251,17 +251,23 @@ function cleanupExpiredRooms() {
 }
 
 // Helper function to get language-specific main word from card
-function getCardWord(card: Card, language?: 'en' | 'hi'): string {
+function getCardWord(card: Card, language?: 'en' | 'hi' | 'kn'): string {
   if (language === 'hi' && card.mainWordHi) {
     return card.mainWordHi;
+  }
+  if (language === 'kn' && card.mainWordKn) {
+    return card.mainWordKn;
   }
   return card.mainWord;
 }
 
 // Helper function to get language-specific forbidden words from card
-function getCardForbiddenWords(card: Card, language?: 'en' | 'hi'): string[] {
+function getCardForbiddenWords(card: Card, language?: 'en' | 'hi' | 'kn'): string[] {
   if (language === 'hi' && card.forbiddenWordsHi) {
     return card.forbiddenWordsHi;
+  }
+  if (language === 'kn' && card.forbiddenWordsKn) {
+    return card.forbiddenWordsKn;
   }
   return card.forbiddenWords;
 }
@@ -269,7 +275,7 @@ function getCardForbiddenWords(card: Card, language?: 'en' | 'hi'): string[] {
 // Helper function to remove player from room
 
 // Helper function to start game
-async function startGame(room: Room, language: 'en' | 'hi' = 'en'): Promise<boolean> {
+async function startGame(room: Room, language: 'en' | 'hi' | 'kn' = 'en'): Promise<boolean> {
   // Validate room size (must have at least 2 players)
   if (room.players.length < 2) {
     return false;
