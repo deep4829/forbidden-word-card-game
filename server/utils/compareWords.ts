@@ -1,6 +1,6 @@
 /**
  * Main word comparison utility with multi-layered matching strategy
- * Uses local algorithms only - no external API needed
+ * Uses local algorithms for English/Hindi, and Gemini API for Kannada
  */
 
 import { normalize } from './forbiddenCheck';
@@ -10,6 +10,7 @@ import {
   isSoundexMatch, 
   isCloseTypo 
 } from './localMatching';
+import { checkKannadaMatch } from './kannadaMatcher';
 
 /**
  * Configuration for word matching
@@ -25,12 +26,18 @@ export const MATCHING_CONFIG = {
 /**
  * Main function to check if a guess matches the target word
  * Uses multiple algorithms in order of speed (fastest first)
+ * For Kannada: uses Gemini API for semantic understanding
  * 
  * @param guess - The player's guess
  * @param target - The target word from the card
+ * @param forbiddenWords - Optional list of forbidden words (for Kannada matching)
  * @returns true if the guess is considered a match
  */
-export function isMatchingGuess(guess: string, target: string): boolean {
+export async function isMatchingGuess(
+  guess: string, 
+  target: string,
+  forbiddenWords: string[] = []
+): Promise<boolean> {
   const startTime = Date.now();
   
   if (MATCHING_CONFIG.logMatchDetails) {
@@ -39,7 +46,28 @@ export function isMatchingGuess(guess: string, target: string): boolean {
     console.log(`   Target: "${target}"`);
   }
   
-  // Layer 1: Exact match (fastest - instant)
+  // Check if this is Kannada text (Kannada Unicode range: U+0C80 to U+0CFF)
+  const kannadaRegex = /[\u0C80-\u0CFF]/;
+  const isKannada = kannadaRegex.test(guess) || kannadaRegex.test(target);
+  
+  // Layer 0: Kannada matching with Gemini API (uses semantic understanding)
+  if (isKannada && process.env.GEMINI_API_KEY) {
+    try {
+      const match = await checkKannadaMatch(guess, target, forbiddenWords);
+      if (match) {
+        if (MATCHING_CONFIG.logMatchDetails) {
+          console.log(`   ✅ KANNADA GEMINI MATCH`);
+          console.log(`   Time: ${Date.now() - startTime}ms`);
+          console.log(`=============================\n`);
+        }
+        return true;
+      }
+    } catch (error) {
+      console.error('Error in Kannada matching, falling back to local matching:', error);
+      // Fall through to local matching as fallback
+    }
+  }
+  
   if (MATCHING_CONFIG.enableExactMatch) {
     const normalizedGuess = normalize(guess);
     const normalizedTarget = normalize(target);
@@ -114,9 +142,9 @@ export function isMatchingGuess(guess: string, target: string): boolean {
  * Check if a word is in a list of words (used for forbidden word checking)
  * Uses the same matching logic as isMatchingGuess
  */
-export function isWordInList(word: string, wordList: string[]): boolean {
+export async function isWordInList(word: string, wordList: string[]): Promise<boolean> {
   for (const listWord of wordList) {
-    if (isMatchingGuess(word, listWord)) {
+    if (await isMatchingGuess(word, listWord)) {
       return true;
     }
   }

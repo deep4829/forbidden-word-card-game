@@ -19,6 +19,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@google/generative-ai": "^0.19.0",
     "@iamtraction/google-translate": "^2.0.1",
     "@supabase/supabase-js": "^2.86.0",
     "dotenv": "^16.6.1",

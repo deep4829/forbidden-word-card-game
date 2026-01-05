@@ -926,10 +926,11 @@ io.on('connection', (socket) => {
     roomPlayersWhoGuessed.set(roomId, playersWhoGuessed);
 
     // Check if guess matches target word using fuzzy matching
-    // This handles spelling variations, phonetic similarities, and typos
+    // This handles spelling variations, phonetic similarities, typos, and for Kannada uses Gemini AI
     // Use language-specific main word for comparison
     const targetWord = getCardWord(room.currentCard, room.language);
-    if (isMatchingGuess(guess, targetWord)) {
+    const forbiddenWords = getCardForbiddenWords(room.currentCard, room.language);
+    if (await isMatchingGuess(guess, targetWord, forbiddenWords)) {
       // Correct guess!
       const clueCount = roomClueCount.get(roomId) || 0;
       const points = computePoints(clueCount);
