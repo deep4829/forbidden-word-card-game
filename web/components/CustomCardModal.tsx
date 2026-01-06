@@ -31,7 +31,7 @@ export default function CustomCardModal({ isOpen, onClose, onSubmit, isSubmittin
         }
 
         const filledForbidden = forbiddenWords.map(w => w.trim()).filter(w => w);
-        if (filledForbidden.length < 5) { // Enforce 5? Or fewer OK? Logic usually expects 5 in this game style
+        if (filledForbidden.length < 3) { // Enforce 5? Or fewer OK? Logic usually expects 5 in this game style
             // Let's enforce at least 2 for gameplay, but game usually has 5.
             // User asked "forbbiden word to add", usually implying the set. 
             // Let's require at least 3 to make it challenging.
