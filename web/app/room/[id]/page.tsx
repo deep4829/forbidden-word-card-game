@@ -290,7 +290,12 @@ export default function RoomPage() {
   const shareInviteLink = async () => {
     if (navigator.share) {
       try {
-        ```
+        await navigator.share({
+          title: 'Join Forbidden Word Game',
+          text: 'Come play the Forbidden Word Game with me!',
+          url: inviteUrl,
+        });
+        try { play('click'); } catch (e) { }
       } catch (err) {
         console.error('Failed to share:', err);
       }
@@ -301,9 +306,9 @@ export default function RoomPage() {
     if (!roomId) return;
     setIsCreatingCard(true);
     socket.emit('create-custom-card', {
-        roomId,
-        mainWord,
-        forbiddenWords
+      roomId,
+      mainWord,
+      forbiddenWords
     });
   };
 
@@ -342,10 +347,10 @@ export default function RoomPage() {
   return (
     <div className="h-screen h-dvh max-h-screen max-h-dvh overflow-hidden bg-gradient-to-br from-indigo-500 to-purple-600 p-2 sm:p-3 md:p-4 flex flex-col">
       <style>{`
-        @media(max - width: 640px) {
+        @media (max-width: 640px) {
           header {
-            top: auto!important;
-            bottom: 1rem!important;
+            top: auto !important;
+            bottom: 1rem !important;
           }
         }
         `}</style>
@@ -433,11 +438,10 @@ export default function RoomPage() {
                         key={value}
                         onClick={() => handleRoundsChange(value)}
                         disabled={room.maxRounds === value}
-                        className={`py - 1 sm: py - 2 lg: py - 1 rounded - md sm: rounded - lg font - semibold text - xs sm: text - sm lg: text - xs transition - colors border ${
-          selectedRounds === value
-            ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
-            : 'bg-white text-gray-700 border-gray-200 hover:border-indigo-400'
-        } ${ room.maxRounds === value ? 'cursor-default opacity-80' : '' } `}
+                        className={`py - 1 sm: py - 2 lg: py - 1 rounded - md sm: rounded - lg font - semibold text - xs sm: text - sm lg: text - xs transition - colors border ${selectedRounds === value
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                            : 'bg-white text-gray-700 border-gray-200 hover:border-indigo-400'
+                          } ${room.maxRounds === value ? 'cursor-default opacity-80' : ''} `}
                       >
                         {value}
                       </button>
@@ -464,14 +468,14 @@ export default function RoomPage() {
               {/* Custom Card Button */}
               <div className="mt-4 border-t pt-4 border-gray-100">
                 <button
-                    onClick={() => setIsCustomCardModalOpen(true)}
-                    className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-bold text-sm sm:text-base transition-colors"
+                  onClick={() => setIsCustomCardModalOpen(true)}
+                  className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-bold text-sm sm:text-base transition-colors"
                 >
-                    <span className="bg-indigo-100 p-1.5 rounded-full">✨</span>
-                    Create Custom Card
+                  <span className="bg-indigo-100 p-1.5 rounded-full">✨</span>
+                  Create Custom Card
                 </button>
                 <p className="text-[10px] sm:text-xs text-gray-500 mt-1 pl-9">
-                    Add your own words to the game! Translations & images generated automatically.
+                  Add your own words to the game! Translations & images generated automatically.
                 </p>
               </div>
             </div>
@@ -493,17 +497,15 @@ export default function RoomPage() {
               {room?.players.map((player, index) => (
                 <div
                   key={player.id}
-                  className={`p - 2 sm: p - 4 lg: p - 2 rounded - lg sm: rounded - xl lg: rounded - lg border transition - all ${
-          player.id === currentPlayerId
-            ? 'bg-indigo-50 border-indigo-300'
-            : 'bg-gray-50 border-gray-200'
-        } `}
+                  className={`p - 2 sm: p - 4 lg: p - 2 rounded - lg sm: rounded - xl lg: rounded - lg border transition - all ${player.id === currentPlayerId
+                      ? 'bg-indigo-50 border-indigo-300'
+                      : 'bg-gray-50 border-gray-200'
+                    } `}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-3 lg:gap-2 lg:flex-row">
                     <div className="flex items-center gap-2 sm:gap-3 lg:gap-2 min-w-0 flex-1">
-                      <div className={`w - 7 h - 7 sm: w - 12 sm: h - 12 lg: w - 8 lg: h - 8 rounded - full flex items - center justify - center text - sm sm: text - 2xl lg: text - base font - bold flex - shrink - 0 ${
-          index === 0 ? 'bg-yellow-500' : 'bg-indigo-500'
-        } `}>
+                      <div className={`w - 7 h - 7 sm: w - 12 sm: h - 12 lg: w - 8 lg: h - 8 rounded - full flex items - center justify - center text - sm sm: text - 2xl lg: text - base font - bold flex - shrink - 0 ${index === 0 ? 'bg-yellow-500' : 'bg-indigo-500'
+                        } `}>
                         {player.avatar || player.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -540,7 +542,7 @@ export default function RoomPage() {
               {/* Empty Slots - Only show if less than 4 players, hidden on mobile and desktop */}
               {room && room.players.length < 4 && Array.from({ length: 4 - (room?.players.length || 0) }).map((_, index) => (
                 <div
-                  key={`empty - ${ index } `}
+                  key={`empty - ${index} `}
                   className="p-2 sm:p-4 lg:p-2 rounded-lg sm:rounded-xl lg:rounded-lg border border-dashed border-gray-300 bg-gray-50 hidden sm:block lg:hidden"
                 >
                   <div className="flex items-center gap-2 sm:gap-3 lg:gap-2">
@@ -570,11 +572,10 @@ export default function RoomPage() {
                       localStorage.setItem('gameLanguage', 'en');
                       play('click');
                     }}
-                    className={`py - 3 sm: py - 4 lg: py - 3 px - 4 sm: px - 6 lg: px - 4 rounded - lg sm: rounded - xl lg: rounded - lg font - bold text - sm sm: text - lg lg: text - base transition - all ${
-          selectedLanguage === 'en'
-            ? 'bg-blue-600 text-white ring-2 ring-blue-300 shadow-md'
-            : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-        } `}
+                    className={`py - 3 sm: py - 4 lg: py - 3 px - 4 sm: px - 6 lg: px - 4 rounded - lg sm: rounded - xl lg: rounded - lg font - bold text - sm sm: text - lg lg: text - base transition - all ${selectedLanguage === 'en'
+                        ? 'bg-blue-600 text-white ring-2 ring-blue-300 shadow-md'
+                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                      } `}
                   >
                     🇬🇧 English
                   </button>
@@ -584,11 +585,10 @@ export default function RoomPage() {
                       localStorage.setItem('gameLanguage', 'hi');
                       play('click');
                     }}
-                    className={`py - 3 sm: py - 4 lg: py - 3 px - 4 sm: px - 6 lg: px - 4 rounded - lg sm: rounded - xl lg: rounded - lg font - bold text - sm sm: text - lg lg: text - base transition - all ${
-          selectedLanguage === 'hi'
-            ? 'bg-orange-600 text-white ring-2 ring-orange-300 shadow-md'
-            : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-        } `}
+                    className={`py - 3 sm: py - 4 lg: py - 3 px - 4 sm: px - 6 lg: px - 4 rounded - lg sm: rounded - xl lg: rounded - lg font - bold text - sm sm: text - lg lg: text - base transition - all ${selectedLanguage === 'hi'
+                        ? 'bg-orange-600 text-white ring-2 ring-orange-300 shadow-md'
+                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                      } `}
                   >
                     🇮🇳 हिंदी
                   </button>
@@ -598,11 +598,10 @@ export default function RoomPage() {
                       localStorage.setItem('gameLanguage', 'kn');
                       play('click');
                     }}
-                    className={`py - 3 sm: py - 4 lg: py - 3 px - 4 sm: px - 6 lg: px - 4 rounded - lg sm: rounded - xl lg: rounded - lg font - bold text - sm sm: text - lg lg: text - base transition - all ${
-          selectedLanguage === 'kn'
-            ? 'bg-green-600 text-white ring-2 ring-green-300 shadow-md'
-            : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-        } `}
+                    className={`py - 3 sm: py - 4 lg: py - 3 px - 4 sm: px - 6 lg: px - 4 rounded - lg sm: rounded - xl lg: rounded - lg font - bold text - sm sm: text - lg lg: text - base transition - all ${selectedLanguage === 'kn'
+                        ? 'bg-green-600 text-white ring-2 ring-green-300 shadow-md'
+                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                      } `}
                   >
                     🇮🇳 ಕನ್ನಡ
                   </button>
@@ -675,10 +674,10 @@ export default function RoomPage() {
         )}
 
         <CustomCardModal
-            isOpen={isCustomCardModalOpen}
-            onClose={() => !isCreatingCard && setIsCustomCardModalOpen(false)}
-            onSubmit={handleCreateCustomCard}
-            isSubmitting={isCreatingCard}
+          isOpen={isCustomCardModalOpen}
+          onClose={() => !isCreatingCard && setIsCustomCardModalOpen(false)}
+          onSubmit={handleCreateCustomCard}
+          isSubmitting={isCreatingCard}
         />
 
         {/* How to Play Button - Bottom Left on Mobile */}
