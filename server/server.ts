@@ -750,7 +750,6 @@ io.on('connection', (socket) => {
           forbidden_words_kn: forbiddenTrans.map(t => t.kn),
           image_url: mainImage,
           forbidden_word_image_urls: forbiddenImages,
-          language: 'en' // Default to English as source
         })
         .select()
         .single();
