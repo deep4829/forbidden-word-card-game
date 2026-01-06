@@ -3,12 +3,12 @@
  * Uses local algorithms for English/Hindi, and Gemini API for Kannada
  */
 
-import { normalize } from './forbiddenCheck';
-import { 
-  isStringSimilar, 
-  isPhoneticMatch, 
-  isSoundexMatch, 
-  isCloseTypo 
+import { normalize } from './textUtils';
+import {
+  isStringSimilar,
+  isPhoneticMatch,
+  isSoundexMatch,
+  isCloseTypo
 } from './localMatching';
 import { checkKannadaMatch } from './kannadaMatcher';
 
@@ -34,22 +34,22 @@ export const MATCHING_CONFIG = {
  * @returns true if the guess is considered a match
  */
 export async function isMatchingGuess(
-  guess: string, 
+  guess: string,
   target: string,
   forbiddenWords: string[] = []
 ): Promise<boolean> {
   const startTime = Date.now();
-  
+
   if (MATCHING_CONFIG.logMatchDetails) {
     console.log(`\n🔍 ===== WORD COMPARISON =====`);
     console.log(`   Guess:  "${guess}"`);
     console.log(`   Target: "${target}"`);
   }
-  
+
   // Check if this is Kannada text (Kannada Unicode range: U+0C80 to U+0CFF)
   const kannadaRegex = /[\u0C80-\u0CFF]/;
   const isKannada = kannadaRegex.test(guess) || kannadaRegex.test(target);
-  
+
   // Layer 0: Kannada matching with Gemini API (uses semantic understanding)
   if (isKannada && process.env.GEMINI_API_KEY) {
     try {
@@ -67,11 +67,11 @@ export async function isMatchingGuess(
       // Fall through to local matching as fallback
     }
   }
-  
+
   if (MATCHING_CONFIG.enableExactMatch) {
     const normalizedGuess = normalize(guess);
     const normalizedTarget = normalize(target);
-    
+
     if (normalizedGuess === normalizedTarget) {
       if (MATCHING_CONFIG.logMatchDetails) {
         console.log(`   ✅ EXACT MATCH`);
@@ -81,7 +81,7 @@ export async function isMatchingGuess(
       return true;
     }
   }
-  
+
   // Layer 2: String similarity (fast - ~5ms)
   if (MATCHING_CONFIG.enableStringSimilarity) {
     if (isStringSimilar(guess, target)) {
@@ -93,7 +93,7 @@ export async function isMatchingGuess(
       return true;
     }
   }
-  
+
   // Layer 3: Typo tolerance (very fast - ~2ms)
   if (MATCHING_CONFIG.enableTypoTolerance) {
     if (isCloseTypo(guess, target)) {
@@ -105,7 +105,7 @@ export async function isMatchingGuess(
       return true;
     }
   }
-  
+
   // Layer 4: Phonetic match (fast - ~5ms)
   if (MATCHING_CONFIG.enablePhoneticMatch) {
     if (isPhoneticMatch(guess, target)) {
@@ -116,7 +116,7 @@ export async function isMatchingGuess(
       }
       return true;
     }
-    
+
     // Try Soundex as backup
     if (isSoundexMatch(guess, target)) {
       if (MATCHING_CONFIG.logMatchDetails) {
@@ -127,14 +127,14 @@ export async function isMatchingGuess(
       return true;
     }
   }
-  
+
   // No match found
   if (MATCHING_CONFIG.logMatchDetails) {
     console.log(`   ❌ NO MATCH`);
     console.log(`   Time: ${Date.now() - startTime}ms`);
     console.log(`=============================\n`);
   }
-  
+
   return false;
 }
 

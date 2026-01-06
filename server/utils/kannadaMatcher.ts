@@ -5,7 +5,7 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { compareTwoStrings } from 'string-similarity';
-import { normalize } from './forbiddenCheck';
+import { normalize } from './textUtils';
 
 // Initialize Gemini API (if key present)
 const GEMINI_KEY = process.env.GEMINI_API_KEY || '';

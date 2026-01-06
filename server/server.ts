@@ -10,7 +10,8 @@ import { Server } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
 import { Room, Player, Card } from './types/game';
 import { loadAndShuffleDeck, warmCardCache } from './lib/supabase';
-import { checkForbidden, normalize } from './utils/forbiddenCheck';
+import { checkForbidden } from './utils/forbiddenCheck';
+import { normalize } from './utils/textUtils';
 import { computePoints } from './utils/scoring';
 import { isMatchingGuess } from './utils/compareWords';
 
@@ -229,7 +230,7 @@ function cleanupExpiredRooms() {
   for (const [roomId, lastActivity] of roomActivity.entries()) {
     if (now - lastActivity > ROOM_TIMEOUT) {
       console.log(`[cleanup] Removing expired room: ${roomId}`);
-      
+
       // Clean up all maps related to this room
       rooms.delete(roomId);
       roomDecks.delete(roomId);
@@ -240,7 +241,7 @@ function cleanupExpiredRooms() {
       roomCluePhase.delete(roomId);
       roomPlayersWhoGuessed.delete(roomId);
       roomActivity.delete(roomId);
-      
+
       cleanedCount++;
     }
   }
@@ -284,7 +285,7 @@ async function startGame(room: Room, language: 'en' | 'hi' | 'kn' = 'en'): Promi
   // Ensure max rounds is within supported range
   const sanitizedMaxRounds = Math.max(MIN_ROUNDS, Math.min(MAX_ROUNDS_LIMIT, room.maxRounds ?? DEFAULT_MAX_ROUNDS));
   room.maxRounds = sanitizedMaxRounds;
-  
+
   // Set room language
   room.language = language;
 
@@ -395,7 +396,7 @@ function endRound(
   room.roundInProgress = false;
   room.currentCard = null;
   roomClueCount.set(room.id, 0);
-  
+
   // Clear clues and guesses for next round
   roomCluesGiven.delete(room.id);
   roomGuessesGiven.delete(room.id);
@@ -442,14 +443,14 @@ io.on('connection', (socket) => {
     // Handle both old format (just string) and new format (object with avatar)
     let playerName = '';
     let playerAvatar = '🎮';
-    
+
     if (typeof data === 'string') {
       playerName = data;
     } else {
       playerName = data.playerName;
       playerAvatar = data.playerAvatar || '🎮';
     }
-    
+
     console.log(`[create-room] Received request from ${socket.id} with name: ${playerName}, avatar: ${playerAvatar}`);
     const roomId = uuidv4();
     const player = createPlayer(socket.id, playerName, playerAvatar);
@@ -457,12 +458,12 @@ io.on('connection', (socket) => {
 
     rooms.set(roomId, room);
     updateRoomActivity(roomId);  // Track room creation time
-    
+
     // Store socket-to-room mapping and player session data
     socketToRoom.set(socket.id, roomId);
     const playerKey = `${playerName}:${playerAvatar}`;
     playerSessionData.set(playerKey, { name: playerName, avatar: playerAvatar, roomId });
-    
+
     socket.join(roomId);
 
     console.log(`[create-room] Emitting room-created event to socket ${socket.id} for room ${roomId}`);
@@ -532,10 +533,10 @@ io.on('connection', (socket) => {
 
     // Check if a player with this name and avatar already exists in the room (reconnection case)
     const existingPlayer = room.players.find((p) => p.name === playerName && p.avatar === playerAvatar);
-    
+
     if (existingPlayer) {
       const previousSocketId = existingPlayer.id;
-      
+
       // IMPORTANT: Only allow reconnection if the old socket is still disconnected
       // If the old socket is still active/connected, reject this as a duplicate name attempt
       if (previousSocketId !== socket.id && io.sockets.sockets.get(previousSocketId)) {
@@ -543,7 +544,7 @@ io.on('connection', (socket) => {
         console.log(`[join-room] Duplicate name+avatar rejected (player still connected): ${playerName} in room ${roomId}`);
         return;
       }
-      
+
       // This is a reconnection case - same name+avatar means the same player is reconnecting
       // Allow the reconnection by updating their socket ID
       console.log(`[rejoin] Player ${playerName} reconnecting. Old socket: ${previousSocketId}, New socket: ${socket.id}`);
@@ -577,7 +578,7 @@ io.on('connection', (socket) => {
       socketToRoom.delete(previousSocketId);
       socketToRoom.set(socket.id, roomId);
       playerSessionData.set(playerKey, { name: playerName, avatar: playerAvatar, roomId });
-      
+
       socket.join(roomId);
       socket.emit('room-joined', { roomId, room });
       io.to(roomId).emit('room-updated', room);
@@ -699,14 +700,14 @@ io.on('connection', (socket) => {
     // Handle both old format (just roomId string) and new format (object with language)
     let roomId = '';
     let language: 'en' | 'hi' = 'en';
-    
+
     if (typeof data === 'string') {
       roomId = data;
     } else {
       roomId = data.roomId;
       language = data.language || 'en';
     }
-    
+
     const room = getRoom(roomId);
 
     if (!room) {
@@ -752,7 +753,7 @@ io.on('connection', (socket) => {
   });
 
   // Handle speaker-transcript event
-  socket.on('speaker-transcript', (data: { roomId: string; transcript: string }) => {
+  socket.on('speaker-transcript', async (data: { roomId: string; transcript: string }) => {
     const { roomId, transcript } = data;
     console.log(`📤 speaker-transcript received: roomId=${roomId}, speaker=${socket.id}, transcript="${transcript}"`);
     const room = getRoom(roomId);
@@ -801,12 +802,12 @@ io.on('connection', (socket) => {
     // Check for forbidden words (language-aware)
     const mainWord = getCardWord(room.currentCard, room.language);
     const forbiddenWords = getCardForbiddenWords(room.currentCard, room.language);
-    const violations = checkForbidden(transcript, [mainWord, ...forbiddenWords]);
+    const violations = await checkForbidden(transcript, [mainWord, ...forbiddenWords]);
 
     if (violations.length > 0) {
       // Remove the clue from the set since it was invalid (allow retry)
       cluesSet.delete(normalizedClue);
-      
+
       // Apply -5 penalty to the speaker
       const speaker = room.players.find((p) => p.id === socket.id);
       if (speaker) {
@@ -1044,7 +1045,7 @@ io.on('connection', (socket) => {
         // Switch back to speaker phase so they can give next clue
         roomCluePhase.set(roomId, 'speaker');
         roomPlayersWhoGuessed.set(roomId, new Set()); // Reset for next clue
-        
+
         // Notify all players that it's back to speaker phase
         io.to(roomId).emit('phase-changed', {
           phase: 'speaker',
@@ -1226,12 +1227,12 @@ io.on('connection', (socket) => {
 
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
-  
+
   // Start cleanup interval for expired rooms
   setInterval(() => {
     cleanupExpiredRooms();
   }, CLEANUP_INTERVAL);
-  
+
   console.log(`Room cleanup scheduled every ${CLEANUP_INTERVAL / 1000 / 60} minutes (timeout: ${ROOM_TIMEOUT / 1000 / 60} minutes)`);
 
   warmCardCache();

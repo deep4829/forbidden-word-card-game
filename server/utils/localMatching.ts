@@ -6,7 +6,7 @@
 
 import { compareTwoStrings } from 'string-similarity';
 import natural from 'natural';
-import { normalize } from './forbiddenCheck';
+import { normalize } from './textUtils';
 
 // Configuration
 const STRING_SIMILARITY_THRESHOLD = 0.85;
@@ -29,14 +29,14 @@ function isHindi(str: string): boolean {
 function getHindiSimilarityScore(str1: string, str2: string): number {
   const normalized1 = normalize(str1);
   const normalized2 = normalize(str2);
-  
+
   // Direct character-by-character comparison
   const baseScore = compareTwoStrings(normalized1, normalized2);
-  
+
   // Additional bonus for common Hindi variations
   // In Hindi, some diacritics can be omitted or written differently
   // e.g., "बुखार" can be written as "बुखार" (slight variations in anusvara, visarga, etc.)
-  
+
   // Check for prefix/suffix matches (common in Hindi word variations)
   const minLen = Math.min(normalized1.length, normalized2.length);
   if (minLen >= 3) {
@@ -48,7 +48,7 @@ function getHindiSimilarityScore(str1: string, str2: string): number {
     const charMatchScore = matchCount / Math.max(normalized1.length, normalized2.length);
     return Math.max(baseScore, charMatchScore);
   }
-  
+
   return baseScore;
 }
 
@@ -59,20 +59,20 @@ function getHindiSimilarityScore(str1: string, str2: string): number {
 export function isStringSimilar(str1: string, str2: string, threshold?: number): boolean {
   const normalized1 = normalize(str1);
   const normalized2 = normalize(str2);
-  
+
   // Auto-detect language and adjust threshold
   const isHindiText = isHindi(str1) || isHindi(str2);
   const effectiveThreshold = threshold ?? (isHindiText ? HINDI_SIMILARITY_THRESHOLD : STRING_SIMILARITY_THRESHOLD);
-  
+
   let similarity: number;
   if (isHindiText) {
     similarity = getHindiSimilarityScore(normalized1, normalized2);
   } else {
     similarity = compareTwoStrings(normalized1, normalized2);
   }
-  
+
   console.log(`[String Similarity] "${str1}" vs "${str2}" = ${similarity.toFixed(3)} (threshold: ${effectiveThreshold}, isHindi: ${isHindiText})`);
-  
+
   return similarity >= effectiveThreshold;
 }
 
@@ -83,16 +83,16 @@ export function isStringSimilar(str1: string, str2: string, threshold?: number):
  */
 export function isPhoneticMatch(word1: string, word2: string): boolean {
   if (!USE_PHONETIC_MATCHING) return false;
-  
+
   // Skip phonetic matching for Hindi - not applicable to Devanagari
   if (isHindi(word1) || isHindi(word2)) {
     console.log(`[Phonetic Match] Skipped for Hindi text`);
     return false;
   }
-  
+
   const normalized1 = normalize(word1);
   const normalized2 = normalize(word2);
-  
+
   // Metaphone is good for English words
   // Cast to any to access runtime class while staying compatible with TypeScript typings
   const naturalAny = natural as any;
@@ -100,9 +100,9 @@ export function isPhoneticMatch(word1: string, word2: string): boolean {
   const code1 = metaphone.process(normalized1);
   const code2 = metaphone.process(normalized2);
   const match = code1 === code2;
-  
+
   console.log(`[Phonetic Match] "${word1}" (${code1}) vs "${word2}" (${code2}) = ${match}`);
-  
+
   return match;
 }
 
@@ -113,24 +113,24 @@ export function isPhoneticMatch(word1: string, word2: string): boolean {
  */
 export function isSoundexMatch(word1: string, word2: string): boolean {
   if (!USE_PHONETIC_MATCHING) return false;
-  
+
   // Skip phonetic matching for Hindi - not applicable to Devanagari
   if (isHindi(word1) || isHindi(word2)) {
     console.log(`[Soundex Match] Skipped for Hindi text`);
     return false;
   }
-  
+
   const normalized1 = normalize(word1);
   const normalized2 = normalize(word2);
-  
+
   const naturalAny = natural as any;
   const soundex = new naturalAny.SoundEx();
   const code1 = soundex.process(normalized1);
   const code2 = soundex.process(normalized2);
   const match = code1 === code2;
-  
+
   console.log(`[Soundex Match] "${word1}" (${code1}) vs "${word2}" (${code2}) = ${match}`);
-  
+
   return match;
 }
 
@@ -143,14 +143,14 @@ export function isCloseTypo(str1: string, str2: string): boolean {
   const normalized1 = normalize(str1);
   const normalized2 = normalize(str2);
   const distance = natural.LevenshteinDistance(normalized1, normalized2);
-  
+
   // Check if Hindi
   const isHindiText = isHindi(str1) || isHindi(str2);
-  
+
   // Adaptive threshold: longer words allow more edits
   const minLength = Math.min(normalized1.length, normalized2.length);
   let maxDistance = 2;
-  
+
   if (isHindiText) {
     // For Hindi, be slightly more lenient due to script complexities
     if (minLength <= 2) {
@@ -174,9 +174,9 @@ export function isCloseTypo(str1: string, str2: string): boolean {
       maxDistance = 3; // airplane/aeroplane should match
     }
   }
-  
+
   const match = distance <= maxDistance;
   console.log(`[Edit Distance] "${str1}" vs "${str2}" = ${distance} (max: ${maxDistance}, isHindi: ${isHindiText}, match: ${match})`);
-  
+
   return match;
 }
