@@ -767,8 +767,8 @@ export default function GamePage() {
                     <div
                       key={player.id}
                       className={`px-2 py-1.5 sm:px-4 sm:py-3 rounded-md sm:rounded-lg flex items-center justify-between gap-2 sm:gap-3 shadow-md transition-all ${player.id === currentPlayerId
-                          ? 'bg-purple-600 text-white ring-1 sm:ring-2 ring-purple-300'
-                          : 'bg-gray-100 text-gray-900'
+                        ? 'bg-purple-600 text-white ring-1 sm:ring-2 ring-purple-300'
+                        : 'bg-gray-100 text-gray-900'
                         }`}
                     >
                       <div className="flex items-center gap-1 sm:gap-2">
@@ -788,10 +788,10 @@ export default function GamePage() {
         {feedback && (
           <div
             className={`rounded-lg sm:rounded-xl p-2 sm:p-5 lg:p-3 mb-2 sm:mb-6 lg:mb-4 font-bold text-center text-xs sm:text-lg lg:text-base shadow-lg sm:shadow-2xl flex items-center justify-center flex-shrink-0 ${feedbackType === 'success'
-                ? 'bg-green-600 text-white border border-green-400'
-                : feedbackType === 'error'
-                  ? 'bg-red-600 text-white border border-red-400'
-                  : 'bg-blue-600 text-white border border-blue-400'
+              ? 'bg-green-600 text-white border border-green-400'
+              : feedbackType === 'error'
+                ? 'bg-red-600 text-white border border-red-400'
+                : 'bg-blue-600 text-white border border-blue-400'
               }`}
           >
             {feedback}
@@ -844,6 +844,14 @@ export default function GamePage() {
                               key={index}
                               className="bg-red-200 text-red-900 font-bold text-center py-1.5 px-1 sm:py-4 sm:px-4 lg:py-2 lg:px-2 rounded-md sm:rounded-lg border border-red-400 text-xs sm:text-lg lg:text-sm flex items-center justify-center shadow-sm sm:shadow-md"
                             >
+                              {/* Forbidden Image Thumbnail */}
+                              {currentCard.forbiddenWordImageUrls && currentCard.forbiddenWordImageUrls[index] && (
+                                <img
+                                  src={currentCard.forbiddenWordImageUrls[index]}
+                                  alt={word}
+                                  className="w-full h-8 sm:h-12 lg:h-10 object-cover rounded mb-1 sm:mb-2 opacity-80"
+                                />
+                              )}
                               {word}
                             </div>
                           ))}
@@ -868,8 +876,8 @@ export default function GamePage() {
                       <button
                         onClick={() => setUseManualInput(!useManualInput)}
                         className={`text-[10px] sm:text-sm lg:text-xs px-2 sm:px-4 lg:px-2 py-1 sm:py-2 lg:py-1 rounded-md sm:rounded-lg font-bold transition-all ${useManualInput
-                            ? 'bg-orange-600 text-white ring-1 sm:ring-2 ring-orange-300'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          ? 'bg-orange-600 text-white ring-1 sm:ring-2 ring-orange-300'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                           }`}
                       >
                         {useManualInput ? '📝 Text' : '🎤 Mic'}
@@ -980,10 +988,10 @@ export default function GamePage() {
                           disabled={clueHistory.length >= 10 || gamePhase === 'guessing'}
                           aria-label={isListening ? 'Stop recording' : 'Start recording'}
                           className={`w-20 h-20 sm:w-36 sm:h-36 md:w-40 md:h-40 rounded-full flex items-center justify-center text-4xl sm:text-7xl transition-all transform shadow-lg sm:shadow-2xl ${clueHistory.length >= 10 || gamePhase !== 'speaker'
-                              ? 'bg-gray-400 cursor-not-allowed'
-                              : isListening
-                                ? 'bg-red-600 hover:bg-red-700 animate-pulse ring-2 sm:ring-4 ring-red-300 hover:scale-110 active:scale-95'
-                                : 'bg-blue-600 hover:bg-blue-700 ring-2 sm:ring-4 ring-blue-300 hover:scale-110 active:scale-95'
+                            ? 'bg-gray-400 cursor-not-allowed'
+                            : isListening
+                              ? 'bg-red-600 hover:bg-red-700 animate-pulse ring-2 sm:ring-4 ring-red-300 hover:scale-110 active:scale-95'
+                              : 'bg-blue-600 hover:bg-blue-700 ring-2 sm:ring-4 ring-blue-300 hover:scale-110 active:scale-95'
                             }`}
                         >
                           {clueHistory.length >= 10 ? '🚫' : gamePhase === 'guessing' ? '⏳' : isListening ? '🔴' : '🎤'}
@@ -1085,8 +1093,8 @@ export default function GamePage() {
                           <div
                             key={index}
                             className={`w-5 h-5 sm:w-10 sm:h-10 lg:w-6 lg:h-6 rounded-full flex items-center justify-center font-bold text-[10px] sm:text-lg lg:text-xs shadow-sm sm:shadow-md ${index < maxGuesses - guessesUsed
-                                ? 'bg-green-600 text-white ring-1 lg:ring-1 ring-green-300'
-                                : 'bg-gray-400 text-gray-700 ring-1 lg:ring-1 ring-gray-300'
+                              ? 'bg-green-600 text-white ring-1 lg:ring-1 ring-green-300'
+                              : 'bg-gray-400 text-gray-700 ring-1 lg:ring-1 ring-gray-300'
                               }`}
                           >
                             {index < maxGuesses - guessesUsed ? '✓' : '✗'}
@@ -1148,10 +1156,10 @@ export default function GamePage() {
                             disabled={guessesUsed >= maxGuesses || gamePhase !== 'guessing' || playerHasGuessed}
                             aria-label={isListening ? 'Stop recording' : 'Start recording'}
                             className={`w-14 h-14 sm:w-24 sm:h-24 rounded-full flex items-center justify-center text-2xl sm:text-4xl transition-all transform shadow-lg sm:shadow-2xl ${guessesUsed >= maxGuesses || gamePhase !== 'guessing' || playerHasGuessed
-                                ? 'bg-gray-400 cursor-not-allowed'
-                                : isListening
-                                  ? 'bg-red-600 hover:bg-red-700 animate-pulse ring-2 sm:ring-4 ring-red-300'
-                                  : 'bg-purple-600 hover:bg-purple-700 ring-2 sm:ring-4 ring-purple-300'
+                              ? 'bg-gray-400 cursor-not-allowed'
+                              : isListening
+                                ? 'bg-red-600 hover:bg-red-700 animate-pulse ring-2 sm:ring-4 ring-red-300'
+                                : 'bg-purple-600 hover:bg-purple-700 ring-2 sm:ring-4 ring-purple-300'
                               }`}
                           >
                             {playerHasGuessed ? '✓' : guessesUsed >= maxGuesses ? '🚫' : gamePhase !== 'guessing' ? '⏳' : isListening ? '🔴' : '🎤'}
@@ -1189,10 +1197,10 @@ export default function GamePage() {
                 onClick={toggleMic}
                 aria-label={isListening ? 'Stop recording' : 'Start recording'}
                 className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full shadow-lg sm:shadow-2xl flex items-center justify-center text-xl sm:text-3xl ring-2 sm:ring-4 ${clueHistory.length >= 10
-                    ? 'bg-gray-400 cursor-not-allowed ring-gray-300'
-                    : isListening
-                      ? 'bg-red-600 text-white ring-red-300 animate-pulse'
-                      : 'bg-blue-600 text-white ring-blue-300 hover:bg-blue-700'
+                  ? 'bg-gray-400 cursor-not-allowed ring-gray-300'
+                  : isListening
+                    ? 'bg-red-600 text-white ring-red-300 animate-pulse'
+                    : 'bg-blue-600 text-white ring-blue-300 hover:bg-blue-700'
                   } transition-all`}
               >
                 {clueHistory.length >= 10 ? '🚫' : isListening ? '🔴' : '🎤'}
@@ -1226,18 +1234,18 @@ export default function GamePage() {
                   <div
                     key={player.id}
                     className={`p-2 sm:p-5 lg:p-3 rounded-lg sm:rounded-xl border-2 sm:border-3 shadow-md transition-all hover:shadow-lg ${player.id === room.currentClueGiver
-                        ? 'bg-yellow-100 border-yellow-500 ring-1 sm:ring-2 ring-yellow-300'
-                        : player.id === currentPlayerId
-                          ? 'bg-purple-100 border-purple-500 ring-1 sm:ring-2 ring-purple-300'
-                          : 'bg-gray-100 border-gray-300'
+                      ? 'bg-yellow-100 border-yellow-500 ring-1 sm:ring-2 ring-yellow-300'
+                      : player.id === currentPlayerId
+                        ? 'bg-purple-100 border-purple-500 ring-1 sm:ring-2 ring-purple-300'
+                        : 'bg-gray-100 border-gray-300'
                       }`}
                   >
                     <div className="flex items-center gap-2 sm:gap-4 lg:gap-2">
                       <div className={`w-8 h-8 sm:w-16 sm:h-16 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-lg sm:text-4xl lg:text-2xl font-bold shadow-md flex-shrink-0 ${player.id === room.currentClueGiver
-                          ? 'bg-yellow-400'
-                          : player.id === currentPlayerId
-                            ? 'bg-purple-500 text-white'
-                            : 'bg-gray-400'
+                        ? 'bg-yellow-400'
+                        : player.id === currentPlayerId
+                          ? 'bg-purple-500 text-white'
+                          : 'bg-gray-400'
                         }`}>
                         {player.avatar || player.name.charAt(0).toUpperCase()}
                       </div>

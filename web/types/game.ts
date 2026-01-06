@@ -11,6 +11,7 @@ export interface Card {
   forbiddenWordsKn?: string[];
   language?: 'en' | 'hi' | 'kn';
   imageUrl?: string;
+  forbiddenWordImageUrls?: string[];
 }
 
 /**
