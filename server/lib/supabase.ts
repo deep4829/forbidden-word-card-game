@@ -78,6 +78,7 @@ export async function fetchAllCards(language: 'en' | 'hi' | 'kn' = 'en'): Promis
         mainWordKn: card.main_word_kn,
         forbiddenWordsKn: card.forbidden_words_kn,
         language: language,
+        imageUrl: card.image_url,
       };
     });
   } catch (error) {

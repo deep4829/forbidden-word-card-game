@@ -177,7 +177,7 @@ export default function GamePage() {
     console.log('handleSpeechResult called with text:', text, 'isSpeaker:', isSpeakerRef.current, 'roundActive:', roundActiveRef.current);
     const trimmedText = text.trim();
     if (!trimmedText) return;
-    
+
     if (isSpeakerRef.current && roundActiveRef.current) {
       console.log('📤 Speaker sending clue:', trimmedText);
       socket.emit('speaker-transcript', { roomId: roomIdRef.current, transcript: trimmedText });
@@ -304,11 +304,11 @@ export default function GamePage() {
         isSpeaker: data.currentClueGiver === currentPlayerId,
         playerHasGuessed: data.playersWhoGuessed?.includes(currentPlayerId) || false,
       });
-      
+
       setRoom(data.room);
       setRoundNumber(data.roundNumber);
       setGamePhase(data.phase);
-      
+
       // Sync whether current player has guessed
       const playerHasGuessedSync = data.playersWhoGuessed?.includes(currentPlayerId) || false;
       setPlayerHasGuessed(playerHasGuessedSync);
@@ -316,7 +316,7 @@ export default function GamePage() {
         const resolvedRole: 'speaker' | 'guesser' = data.currentClueGiver === currentPlayerId ? 'speaker' : 'guesser';
         setRole(resolvedRole);
       }
-      
+
       // Reset clue history based on server state
       // The clue history should be rebuilt from room data or cleared to sync with server
       if (data.phase === 'guessing') {
@@ -327,7 +327,7 @@ export default function GamePage() {
       } else {
         setClueHistory([]);
       }
-      
+
       // If this player is the new speaker, request the card
       if (data.currentClueGiver === currentPlayerId && data.room.currentCard) {
         console.log('Player is speaker, current card available');
@@ -398,7 +398,7 @@ export default function GamePage() {
         console.log('Updating room from guess result:', data.room);
         setRoom(data.room);
       }
-      
+
       if (data.correct) {
         showFeedback(
           `Correct! ${data.guesserName} guessed "${data.targetWord}" in ${data.clueCount} clues!`,
@@ -421,7 +421,7 @@ export default function GamePage() {
       } else {
         showFeedback('Round ended! Preparing next round...', 'success');
       }
-      
+
       // Hard reset local per-round state to avoid stale locks
       setGamePhase('speaker');
       setPlayerHasGuessed(false);
@@ -430,10 +430,10 @@ export default function GamePage() {
       setGuessInput('');
       setRoundActive(false);
       stopRef.current(); // Stop microphone if it's active
-      
+
       // Request fresh room state to get the new speaker
       socket.emit('get-room', roomId);
-      
+
       // Update round number
       setTimeout(() => {
         setRoundNumber((prev) => prev + 1);
@@ -466,7 +466,7 @@ export default function GamePage() {
       setRoundActive(false);
       setClueHistory([]);
       stopRef.current();
-      
+
       // If the current player is the speaker, request the card
       // This handles the race condition where card-assigned was emitted before listener was ready
       if (data.currentClueGiver === currentPlayerId && roomId) {
@@ -533,7 +533,7 @@ export default function GamePage() {
     // NEW: Handle reset-for-next-game event - redirect all players back to lobby
     const onResetForNextGame = (data: { roomId: string }) => {
       console.log('🔄 Reset for next game requested for room:', data.roomId);
-      
+
       // Clear game state
       setRoom(null);
       setGamePhase(null);
@@ -570,7 +570,7 @@ export default function GamePage() {
     socket.on('error', onError);
     socket.on('game-ended', onGameEnded);
     socket.on('reset-for-next-game', onResetForNextGame);
-    
+
     console.log('🔗 Socket listeners registered for room:', roomId, 'player:', currentPlayerId);
 
     return () => {
@@ -678,23 +678,23 @@ export default function GamePage() {
 
   const toggleMic = () => {
     console.log('toggleMic called - isListening:', isListening, 'isSupported:', isSupported, 'roundActive:', roundActive, 'clueCount:', clueHistory.length);
-    
+
     if (!roundActive) {
       showFeedback('Please start the round first!', 'error');
       return;
     }
-    
+
     // NEW: Check if speaker can give clues (only in speaker phase)
     if (isSpeaker && gamePhase === 'guessing') {
       showFeedback('Waiting for all players to guess before next clue...', 'info');
       return;
     }
-    
+
     if (clueHistory.length >= 10) {
       showFeedback('Maximum 10 clues already given!', 'error');
       return;
     }
-    
+
     console.log('About to toggle mic - isListening:', isListening);
     if (isListening) {
       console.log('Stopping microphone...');
@@ -766,11 +766,10 @@ export default function GamePage() {
                   .map((player, index) => (
                     <div
                       key={player.id}
-                      className={`px-2 py-1.5 sm:px-4 sm:py-3 rounded-md sm:rounded-lg flex items-center justify-between gap-2 sm:gap-3 shadow-md transition-all ${
-                        player.id === currentPlayerId
+                      className={`px-2 py-1.5 sm:px-4 sm:py-3 rounded-md sm:rounded-lg flex items-center justify-between gap-2 sm:gap-3 shadow-md transition-all ${player.id === currentPlayerId
                           ? 'bg-purple-600 text-white ring-1 sm:ring-2 ring-purple-300'
                           : 'bg-gray-100 text-gray-900'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-1 sm:gap-2">
                         <span className="font-bold text-xs sm:text-lg">{index + 1}.</span>
@@ -788,13 +787,12 @@ export default function GamePage() {
         {/* Feedback Banner */}
         {feedback && (
           <div
-            className={`rounded-lg sm:rounded-xl p-2 sm:p-5 lg:p-3 mb-2 sm:mb-6 lg:mb-4 font-bold text-center text-xs sm:text-lg lg:text-base shadow-lg sm:shadow-2xl flex items-center justify-center flex-shrink-0 ${
-              feedbackType === 'success'
+            className={`rounded-lg sm:rounded-xl p-2 sm:p-5 lg:p-3 mb-2 sm:mb-6 lg:mb-4 font-bold text-center text-xs sm:text-lg lg:text-base shadow-lg sm:shadow-2xl flex items-center justify-center flex-shrink-0 ${feedbackType === 'success'
                 ? 'bg-green-600 text-white border border-green-400'
                 : feedbackType === 'error'
-                ? 'bg-red-600 text-white border border-red-400'
-                : 'bg-blue-600 text-white border border-blue-400'
-            }`}
+                  ? 'bg-red-600 text-white border border-red-400'
+                  : 'bg-blue-600 text-white border border-blue-400'
+              }`}
           >
             {feedback}
           </div>
@@ -811,9 +809,20 @@ export default function GamePage() {
                   <h2 className="text-sm sm:text-2xl md:text-3xl lg:text-xl font-bold text-gray-900 mb-2 sm:mb-6 lg:mb-3 text-center">
                     Your Card 🎴
                   </h2>
-                  
+
                   {currentCard ? (
                     <div className="space-y-2 sm:space-y-6 lg:space-y-3">
+                      {/* Image (if available) */}
+                      {currentCard.imageUrl && (
+                        <div className="flex justify-center mb-2 sm:mb-4 lg:mb-2">
+                          <img
+                            src={currentCard.imageUrl}
+                            alt="Card illustration"
+                            className="rounded-lg sm:rounded-xl shadow-md sm:shadow-lg max-h-32 sm:max-h-60 lg:max-h-40 object-cover border-2 sm:border-4 border-white"
+                          />
+                        </div>
+                      )}
+
                       {/* Target Word */}
                       <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg sm:rounded-2xl p-3 sm:p-10 lg:p-4 text-center shadow-lg border-2 sm:border-4 border-green-400">
                         <p className="text-white text-[10px] sm:text-sm lg:text-xs font-bold mb-1 sm:mb-2 lg:mb-1 uppercase tracking-widest">
@@ -858,17 +867,16 @@ export default function GamePage() {
                     {isSupported && roundActive && (
                       <button
                         onClick={() => setUseManualInput(!useManualInput)}
-                        className={`text-[10px] sm:text-sm lg:text-xs px-2 sm:px-4 lg:px-2 py-1 sm:py-2 lg:py-1 rounded-md sm:rounded-lg font-bold transition-all ${
-                          useManualInput
+                        className={`text-[10px] sm:text-sm lg:text-xs px-2 sm:px-4 lg:px-2 py-1 sm:py-2 lg:py-1 rounded-md sm:rounded-lg font-bold transition-all ${useManualInput
                             ? 'bg-orange-600 text-white ring-1 sm:ring-2 ring-orange-300'
                             : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                        }`}
+                          }`}
                       >
                         {useManualInput ? '📝 Text' : '🎤 Mic'}
                       </button>
                     )}
                   </div>
-                  
+
                   {!isSupported ? (
                     <div className="text-center py-4 sm:py-8 lg:py-4 space-y-2 sm:space-y-4 lg:space-y-2">
                       <p className="text-red-700 font-bold text-xs sm:text-lg lg:text-sm">
@@ -971,13 +979,12 @@ export default function GamePage() {
                           onClick={toggleMic}
                           disabled={clueHistory.length >= 10 || gamePhase === 'guessing'}
                           aria-label={isListening ? 'Stop recording' : 'Start recording'}
-                          className={`w-20 h-20 sm:w-36 sm:h-36 md:w-40 md:h-40 rounded-full flex items-center justify-center text-4xl sm:text-7xl transition-all transform shadow-lg sm:shadow-2xl ${
-                            clueHistory.length >= 10 || gamePhase !== 'speaker'
+                          className={`w-20 h-20 sm:w-36 sm:h-36 md:w-40 md:h-40 rounded-full flex items-center justify-center text-4xl sm:text-7xl transition-all transform shadow-lg sm:shadow-2xl ${clueHistory.length >= 10 || gamePhase !== 'speaker'
                               ? 'bg-gray-400 cursor-not-allowed'
                               : isListening
-                              ? 'bg-red-600 hover:bg-red-700 animate-pulse ring-2 sm:ring-4 ring-red-300 hover:scale-110 active:scale-95'
-                              : 'bg-blue-600 hover:bg-blue-700 ring-2 sm:ring-4 ring-blue-300 hover:scale-110 active:scale-95'
-                          }`}
+                                ? 'bg-red-600 hover:bg-red-700 animate-pulse ring-2 sm:ring-4 ring-red-300 hover:scale-110 active:scale-95'
+                                : 'bg-blue-600 hover:bg-blue-700 ring-2 sm:ring-4 ring-blue-300 hover:scale-110 active:scale-95'
+                            }`}
                         >
                           {clueHistory.length >= 10 ? '🚫' : gamePhase === 'guessing' ? '⏳' : isListening ? '🔴' : '🎤'}
                         </button>
@@ -1032,7 +1039,7 @@ export default function GamePage() {
                   <h2 className="text-sm sm:text-2xl md:text-3xl lg:text-lg font-bold text-gray-900 mb-2 sm:mb-6 lg:mb-2 text-center">
                     Clues Received 💬
                   </h2>
-                  
+
                   {clueHistory.length > 0 ? (
                     <div className="space-y-2 sm:space-y-3 lg:space-y-2 max-h-32 sm:max-h-96 lg:max-h-40 overflow-y-auto pr-1 sm:pr-2">
                       {clueHistory.map((clue, index) => (
@@ -1064,7 +1071,7 @@ export default function GamePage() {
                   <h3 className="text-sm sm:text-xl md:text-2xl lg:text-base font-bold text-gray-900 mb-2 sm:mb-6 lg:mb-2 text-center">
                     Make Your Guess 🎯
                   </h3>
-                  
+
                   {/* Guesses Remaining - Mobile-friendly compact layout */}
                   <div className="mb-3 sm:mb-6 lg:mb-3">
                     <div className="flex items-center justify-center gap-1 sm:gap-2 mb-2 sm:mb-3 lg:mb-2">
@@ -1077,11 +1084,10 @@ export default function GamePage() {
                         {Array.from({ length: maxGuesses }).map((_, index) => (
                           <div
                             key={index}
-                            className={`w-5 h-5 sm:w-10 sm:h-10 lg:w-6 lg:h-6 rounded-full flex items-center justify-center font-bold text-[10px] sm:text-lg lg:text-xs shadow-sm sm:shadow-md ${
-                              index < maxGuesses - guessesUsed
+                            className={`w-5 h-5 sm:w-10 sm:h-10 lg:w-6 lg:h-6 rounded-full flex items-center justify-center font-bold text-[10px] sm:text-lg lg:text-xs shadow-sm sm:shadow-md ${index < maxGuesses - guessesUsed
                                 ? 'bg-green-600 text-white ring-1 lg:ring-1 ring-green-300'
                                 : 'bg-gray-400 text-gray-700 ring-1 lg:ring-1 ring-gray-300'
-                            }`}
+                              }`}
                           >
                             {index < maxGuesses - guessesUsed ? '✓' : '✗'}
                           </div>
@@ -1141,13 +1147,12 @@ export default function GamePage() {
                             }}
                             disabled={guessesUsed >= maxGuesses || gamePhase !== 'guessing' || playerHasGuessed}
                             aria-label={isListening ? 'Stop recording' : 'Start recording'}
-                            className={`w-14 h-14 sm:w-24 sm:h-24 rounded-full flex items-center justify-center text-2xl sm:text-4xl transition-all transform shadow-lg sm:shadow-2xl ${
-                              guessesUsed >= maxGuesses || gamePhase !== 'guessing' || playerHasGuessed
+                            className={`w-14 h-14 sm:w-24 sm:h-24 rounded-full flex items-center justify-center text-2xl sm:text-4xl transition-all transform shadow-lg sm:shadow-2xl ${guessesUsed >= maxGuesses || gamePhase !== 'guessing' || playerHasGuessed
                                 ? 'bg-gray-400 cursor-not-allowed'
                                 : isListening
-                                ? 'bg-red-600 hover:bg-red-700 animate-pulse ring-2 sm:ring-4 ring-red-300'
-                                : 'bg-purple-600 hover:bg-purple-700 ring-2 sm:ring-4 ring-purple-300'
-                            }`}
+                                  ? 'bg-red-600 hover:bg-red-700 animate-pulse ring-2 sm:ring-4 ring-red-300'
+                                  : 'bg-purple-600 hover:bg-purple-700 ring-2 sm:ring-4 ring-purple-300'
+                              }`}
                           >
                             {playerHasGuessed ? '✓' : guessesUsed >= maxGuesses ? '🚫' : gamePhase !== 'guessing' ? '⏳' : isListening ? '🔴' : '🎤'}
                           </button>
@@ -1183,13 +1188,12 @@ export default function GamePage() {
               <button
                 onClick={toggleMic}
                 aria-label={isListening ? 'Stop recording' : 'Start recording'}
-                className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full shadow-lg sm:shadow-2xl flex items-center justify-center text-xl sm:text-3xl ring-2 sm:ring-4 ${
-                  clueHistory.length >= 10
+                className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full shadow-lg sm:shadow-2xl flex items-center justify-center text-xl sm:text-3xl ring-2 sm:ring-4 ${clueHistory.length >= 10
                     ? 'bg-gray-400 cursor-not-allowed ring-gray-300'
                     : isListening
-                    ? 'bg-red-600 text-white ring-red-300 animate-pulse'
-                    : 'bg-blue-600 text-white ring-blue-300 hover:bg-blue-700'
-                } transition-all`}
+                      ? 'bg-red-600 text-white ring-red-300 animate-pulse'
+                      : 'bg-blue-600 text-white ring-blue-300 hover:bg-blue-700'
+                  } transition-all`}
               >
                 {clueHistory.length >= 10 ? '🚫' : isListening ? '🔴' : '🎤'}
               </button>
@@ -1205,9 +1209,8 @@ export default function GamePage() {
                   }
                 }}
                 aria-label={isListening ? 'Stop recording' : 'Start recording'}
-                className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full shadow-lg sm:shadow-2xl flex items-center justify-center text-xl sm:text-3xl ring-2 sm:ring-4 ${
-                  isListening ? 'bg-red-600 text-white ring-red-300 animate-pulse' : 'bg-purple-600 text-white ring-purple-300 hover:bg-purple-700'
-                } transition-all`}
+                className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full shadow-lg sm:shadow-2xl flex items-center justify-center text-xl sm:text-3xl ring-2 sm:ring-4 ${isListening ? 'bg-red-600 text-white ring-red-300 animate-pulse' : 'bg-purple-600 text-white ring-purple-300 hover:bg-purple-700'
+                  } transition-all`}
               >
                 {isListening ? '🔴' : '🎤'}
               </button>
@@ -1222,22 +1225,20 @@ export default function GamePage() {
                 {room.players.map((player) => (
                   <div
                     key={player.id}
-                    className={`p-2 sm:p-5 lg:p-3 rounded-lg sm:rounded-xl border-2 sm:border-3 shadow-md transition-all hover:shadow-lg ${
-                      player.id === room.currentClueGiver
+                    className={`p-2 sm:p-5 lg:p-3 rounded-lg sm:rounded-xl border-2 sm:border-3 shadow-md transition-all hover:shadow-lg ${player.id === room.currentClueGiver
                         ? 'bg-yellow-100 border-yellow-500 ring-1 sm:ring-2 ring-yellow-300'
                         : player.id === currentPlayerId
-                        ? 'bg-purple-100 border-purple-500 ring-1 sm:ring-2 ring-purple-300'
-                        : 'bg-gray-100 border-gray-300'
-                    }`}
+                          ? 'bg-purple-100 border-purple-500 ring-1 sm:ring-2 ring-purple-300'
+                          : 'bg-gray-100 border-gray-300'
+                      }`}
                   >
                     <div className="flex items-center gap-2 sm:gap-4 lg:gap-2">
-                      <div className={`w-8 h-8 sm:w-16 sm:h-16 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-lg sm:text-4xl lg:text-2xl font-bold shadow-md flex-shrink-0 ${
-                        player.id === room.currentClueGiver
+                      <div className={`w-8 h-8 sm:w-16 sm:h-16 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-lg sm:text-4xl lg:text-2xl font-bold shadow-md flex-shrink-0 ${player.id === room.currentClueGiver
                           ? 'bg-yellow-400'
                           : player.id === currentPlayerId
-                          ? 'bg-purple-500 text-white'
-                          : 'bg-gray-400'
-                      }`}>
+                            ? 'bg-purple-500 text-white'
+                            : 'bg-gray-400'
+                        }`}>
                         {player.avatar || player.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">

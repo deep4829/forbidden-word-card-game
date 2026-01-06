@@ -10,6 +10,7 @@ export interface Card {
   mainWordKn?: string;
   forbiddenWordsKn?: string[];
   language?: 'en' | 'hi' | 'kn';
+  imageUrl?: string;
 }
 
 /**

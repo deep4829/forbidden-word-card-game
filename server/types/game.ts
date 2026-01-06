@@ -10,6 +10,7 @@ export interface Card {
   mainWordKn?: string;
   forbiddenWordsKn?: string[];
   language?: 'en' | 'hi' | 'kn';
+  imageUrl?: string;
 }
 
 /**
@@ -38,4 +39,3 @@ export interface Room {
   maxRounds: number;
   language?: 'en' | 'hi' | 'kn';
 }
-  
