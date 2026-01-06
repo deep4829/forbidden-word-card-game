@@ -238,7 +238,7 @@ export default function GamePage() {
     const isHindi = room?.language === 'hi';
     const isKannada = room?.language === 'kn';
     if (isHindi && card.mainWordHi) return card.mainWordHi;
-    if (isKannada && card.mainWordKn) return card.mainWordKn;
+    if (isKannada && card.mainWordKn) return `${card.mainWordKn} (${card.mainWord})`;
     return card.mainWord;
   };
 
@@ -247,7 +247,12 @@ export default function GamePage() {
     const isHindi = room?.language === 'hi';
     const isKannada = room?.language === 'kn';
     if (isHindi && card.forbiddenWordsHi) return card.forbiddenWordsHi;
-    if (isKannada && card.forbiddenWordsKn) return card.forbiddenWordsKn;
+    if (isKannada && card.forbiddenWordsKn) {
+      return card.forbiddenWordsKn.map((word, index) => {
+        const englishWord = card.forbiddenWords[index];
+        return englishWord ? `${word} (${englishWord})` : word;
+      });
+    }
     return card.forbiddenWords;
   };
 
