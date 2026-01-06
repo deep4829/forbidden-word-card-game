@@ -142,6 +142,15 @@ function createPlayer(socketId: string, name: string, avatar: string = '🎮'): 
   };
 }
 
+import { fetchImageForWord } from './services/imageService';
+import { translateWord } from './services/translationService';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
 // Helper function to create a new room
 function createRoom(roomId: string, hostPlayer: Player): Room {
   return {
@@ -695,6 +704,77 @@ io.on('connection', (socket) => {
     console.log(`[round-settings] Room ${roomId} max rounds set to ${sanitizedRounds}`);
   });
 
+  // Event: Create Custom Card
+  socket.on('create-custom-card', async (data: {
+    roomId: string;
+    mainWord: string;
+    forbiddenWords: string[]
+  }) => {
+    const { roomId, mainWord, forbiddenWords } = data;
+    console.log(`[create-custom-card] Room ${roomId} creating card: ${mainWord}`);
+
+    try {
+      // 1. Fetch Translations
+      console.log(`  - Translating ${mainWord}...`);
+      const mainTrans = await translateWord(mainWord);
+
+      const forbiddenTransStart = Date.now();
+      const forbiddenTrans = await Promise.all(
+        forbiddenWords.map(w => translateWord(w))
+      );
+      console.log(`  - Translations done in ${Date.now() - forbiddenTransStart}ms`);
+
+      // 2. Fetch Images
+      console.log(`  - Fetching images...`);
+      const mainImage = await fetchImageForWord(mainWord);
+
+      const forbiddenImagesStart = Date.now();
+      const forbiddenImages = [];
+      for (const word of forbiddenWords) {
+        const img = await fetchImageForWord(word);
+        forbiddenImages.push(img || "");
+        // tiny delay to be nice to API
+        await new Promise(r => setTimeout(r, 200));
+      }
+      console.log(`  - Images done in ${Date.now() - forbiddenImagesStart}ms`);
+
+      // 3. Insert into Supabase
+      const { data: newCard, error } = await supabase
+        .from('cards')
+        .insert({
+          main_word: mainWord,
+          forbidden_words: forbiddenWords,
+          main_word_hi: mainTrans.hi,
+          forbidden_words_hi: forbiddenTrans.map(t => t.hi),
+          main_word_kn: mainTrans.kn,
+          forbidden_words_kn: forbiddenTrans.map(t => t.kn),
+          image_url: mainImage,
+          forbidden_word_image_urls: forbiddenImages,
+          language: 'en' // Default to English as source
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Supabase insert error:', error);
+        socket.emit('error', { message: 'Failed to create card database entry.' });
+        return;
+      }
+
+      console.log(`[create-custom-card] Success! Card ID: ${newCard.id}`);
+
+      // 4. Notify Client
+      socket.emit('custom-card-created', { success: true, card: newCard });
+
+      // Optional: Immediately refresh deck for this room if desired? 
+      // For now, next game start will pick it up if cache is refreshed.
+      // Or we can inject it into the current room deck if logic allows.
+
+    } catch (err) {
+      console.error('Error creating custom card:', err);
+      socket.emit('error', { message: 'Failed to create custom card.' });
+    }
+  });
   // Handle start-game event
   socket.on('start-game', async (data: string | { roomId: string; language?: 'en' | 'hi' }) => {
     // Handle both old format (just roomId string) and new format (object with language)

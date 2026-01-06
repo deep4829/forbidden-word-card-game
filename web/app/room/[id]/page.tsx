@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import socket from '@/lib/socket';
 import { useSound } from '@/lib/useSound';
 import EditProfileModal from '@/components/EditProfileModal';
+import CustomCardModal from '@/components/CustomCardModal';
 import HowToPlayButton from '@/app/components/HowToPlayButton';
 import type { Room, Player } from '@/types/game';
 
@@ -23,6 +24,8 @@ export default function RoomPage() {
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
   const [selectedRounds, setSelectedRounds] = useState<number>(10);
   const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'hi' | 'kn'>('en');
+  const [isCustomCardModalOpen, setIsCustomCardModalOpen] = useState(false);
+  const [isCreatingCard, setIsCreatingCard] = useState(false);
   const ROUND_OPTIONS = [1, 2, 3, 5, 7, 10, 12, 15, 20];
 
   // Restore room data from localStorage on mount
@@ -51,13 +54,13 @@ export default function RoomPage() {
   // Get the invite URL based on deployment environment
   const getInviteUrl = () => {
     if (typeof window === 'undefined') return '';
-    
+
     // Use current origin to support both local and deployed environments
     const protocol = window.location.protocol;
     const hostname = window.location.hostname;
     const port = window.location.port;
     const baseUrl = `${protocol}//${hostname}${port ? ':' + port : ''}`;
-    
+
     return `${baseUrl}/join?roomId=${roomId}`;
   };
 
@@ -117,7 +120,7 @@ export default function RoomPage() {
       return;
     }
 
-    try { play('click'); } catch (e) {}
+    try { play('click'); } catch (e) { }
     socket.emit('update-round-settings', { roomId, maxRounds: sanitized });
   };
 
@@ -162,7 +165,7 @@ export default function RoomPage() {
     // Listen for errors
     const onError = (data: { message: string }) => {
       setError(data.message);
-      try { play('error'); } catch (e) {}
+      try { play('error'); } catch (e) { }
       setIsLoading(false);
     };
 
@@ -170,16 +173,25 @@ export default function RoomPage() {
       setSelectedRounds(payload.maxRounds);
     };
 
+    const onCustomCardCreated = (data: { success: boolean, card: any }) => {
+      setIsCreatingCard(false);
+      setIsCustomCardModalOpen(false);
+      try { play('success'); } catch (e) { }
+      alert('Custom card created successfully! It will appear in upcoming games.');
+    };
+
     socket.on('room-updated', onRoomUpdated);
     socket.on('game-started', onGameStarted);
     socket.on('error', onError);
     socket.on('round-settings-updated', onRoundSettingsUpdated);
+    socket.on('custom-card-created', onCustomCardCreated);
 
     return () => {
       socket.off('room-updated', onRoomUpdated);
       socket.off('game-started', onGameStarted);
       socket.off('error', onError);
-       socket.off('round-settings-updated', onRoundSettingsUpdated);
+      socket.off('round-settings-updated', onRoundSettingsUpdated);
+      socket.off('custom-card-created', onCustomCardCreated);
     };
   }, [roomId, router]);
 
@@ -194,7 +206,7 @@ export default function RoomPage() {
       setIsLoading(false);
       if (!room) {
         setError('');
-        try { play('error'); } catch (e) {}
+        try { play('error'); } catch (e) { }
       }
     }, 3000);
 
@@ -235,7 +247,7 @@ export default function RoomPage() {
     try {
       await navigator.clipboard.writeText(roomId);
       setCopySuccess(true);
-      try { play('click'); } catch (e) {}
+      try { play('click'); } catch (e) { }
       setTimeout(() => setCopySuccess(false), 2000);
     } catch (err) {
       console.error('Failed to copy room ID:', err);
@@ -265,7 +277,7 @@ export default function RoomPage() {
       await navigator.clipboard.writeText(inviteUrl);
       setCopySuccess(true);
       setShareMethod('link');
-      try { play('click'); } catch (e) {}
+      try { play('click'); } catch (e) { }
       setTimeout(() => {
         setCopySuccess(false);
         setShareMethod(null);
@@ -278,16 +290,21 @@ export default function RoomPage() {
   const shareInviteLink = async () => {
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: 'Join Forbidden Word Game',
-          text: 'Come play the Forbidden Word Game with me!',
-          url: inviteUrl,
-        });
-        try { play('click'); } catch (e) {}
+        ```
       } catch (err) {
         console.error('Failed to share:', err);
       }
     }
+  };
+
+  const handleCreateCustomCard = (mainWord: string, forbiddenWords: string[]) => {
+    if (!roomId) return;
+    setIsCreatingCard(true);
+    socket.emit('create-custom-card', {
+        roomId,
+        mainWord,
+        forbiddenWords
+    });
   };
 
   const isRoomCreator = room && room.players.length > 0 && room.players[0].id === currentPlayerId;
@@ -325,13 +342,13 @@ export default function RoomPage() {
   return (
     <div className="h-screen h-dvh max-h-screen max-h-dvh overflow-hidden bg-gradient-to-br from-indigo-500 to-purple-600 p-2 sm:p-3 md:p-4 flex flex-col">
       <style>{`
-        @media (max-width: 640px) {
+        @media(max - width: 640px) {
           header {
-            top: auto !important;
-            bottom: 1rem !important;
+            top: auto!important;
+            bottom: 1rem!important;
           }
         }
-      `}</style>
+        `}</style>
       <div className="max-w-4xl mx-auto flex flex-col flex-1 overflow-hidden w-full">
         {/* Header Section */}
         <div className="bg-white rounded-lg sm:rounded-xl shadow-xl p-3 sm:p-4 lg:p-4 mb-2 sm:mb-3 flex-shrink-0">
@@ -416,11 +433,11 @@ export default function RoomPage() {
                         key={value}
                         onClick={() => handleRoundsChange(value)}
                         disabled={room.maxRounds === value}
-                        className={`py-1 sm:py-2 lg:py-1 rounded-md sm:rounded-lg font-semibold text-xs sm:text-sm lg:text-xs transition-colors border ${
-                          selectedRounds === value
-                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
-                            : 'bg-white text-gray-700 border-gray-200 hover:border-indigo-400'
-                        } ${room.maxRounds === value ? 'cursor-default opacity-80' : ''}`}
+                        className={`py - 1 sm: py - 2 lg: py - 1 rounded - md sm: rounded - lg font - semibold text - xs sm: text - sm lg: text - xs transition - colors border ${
+          selectedRounds === value
+            ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+            : 'bg-white text-gray-700 border-gray-200 hover:border-indigo-400'
+        } ${ room.maxRounds === value ? 'cursor-default opacity-80' : '' } `}
                       >
                         {value}
                       </button>
@@ -443,6 +460,20 @@ export default function RoomPage() {
                 </div>
               </div>
               <p className="text-[10px] sm:text-xs text-gray-500 mt-2 sm:mt-3 lg:mt-2">Max 20 rounds. Settings lock once the game starts.</p>
+
+              {/* Custom Card Button */}
+              <div className="mt-4 border-t pt-4 border-gray-100">
+                <button
+                    onClick={() => setIsCustomCardModalOpen(true)}
+                    className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-bold text-sm sm:text-base transition-colors"
+                >
+                    <span className="bg-indigo-100 p-1.5 rounded-full">✨</span>
+                    Create Custom Card
+                </button>
+                <p className="text-[10px] sm:text-xs text-gray-500 mt-1 pl-9">
+                    Add your own words to the game! Translations & images generated automatically.
+                </p>
+              </div>
             </div>
           )}
 
@@ -462,69 +493,69 @@ export default function RoomPage() {
               {room?.players.map((player, index) => (
                 <div
                   key={player.id}
-                  className={`p-2 sm:p-4 lg:p-2 rounded-lg sm:rounded-xl lg:rounded-lg border transition-all ${
-                    player.id === currentPlayerId
-                      ? 'bg-indigo-50 border-indigo-300'
-                      : 'bg-gray-50 border-gray-200'
-                  }`}
+                  className={`p - 2 sm: p - 4 lg: p - 2 rounded - lg sm: rounded - xl lg: rounded - lg border transition - all ${
+          player.id === currentPlayerId
+            ? 'bg-indigo-50 border-indigo-300'
+            : 'bg-gray-50 border-gray-200'
+        } `}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-3 lg:gap-2 lg:flex-row">
                     <div className="flex items-center gap-2 sm:gap-3 lg:gap-2 min-w-0 flex-1">
-                      <div className={`w-7 h-7 sm:w-12 sm:h-12 lg:w-8 lg:h-8 rounded-full flex items-center justify-center text-sm sm:text-2xl lg:text-base font-bold flex-shrink-0 ${
-                      index === 0 ? 'bg-yellow-500' : 'bg-indigo-500'
-                    }`}>
-                      {player.avatar || player.name.charAt(0).toUpperCase()}
+                      <div className={`w - 7 h - 7 sm: w - 12 sm: h - 12 lg: w - 8 lg: h - 8 rounded - full flex items - center justify - center text - sm sm: text - 2xl lg: text - base font - bold flex - shrink - 0 ${
+          index === 0 ? 'bg-yellow-500' : 'bg-indigo-500'
+        } `}>
+                        {player.avatar || player.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-gray-800 flex items-center gap-1 flex-wrap text-xs sm:text-base lg:text-xs">
+                          <span className="truncate max-w-[60px] sm:max-w-none">{player.name}</span>
+                          {player.id === currentPlayerId && (
+                            <span className="text-[8px] sm:text-xs lg:text-[10px] bg-indigo-600 text-white px-1 py-0.5 rounded-full whitespace-nowrap">
+                              You
+                            </span>
+                          )}
+                          {index === 0 && (
+                            <span className="text-[8px] sm:text-xs lg:text-[10px] bg-yellow-500 text-white px-1 py-0.5 rounded-full whitespace-nowrap">
+                              Host
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-[10px] sm:text-sm lg:text-xs text-gray-500">
+                          {player.isReady ? '✓ Ready' : 'Waiting...'}
+                        </p>
+                      </div>
+                    </div>
+                    {player.id === currentPlayerId && (
+                      <button
+                        onClick={openEditModal}
+                        className="px-2 sm:px-3 lg:px-2 py-1 sm:py-2 lg:py-1 bg-indigo-600 text-white text-[10px] sm:text-sm lg:text-xs rounded-md sm:rounded-lg hover:bg-indigo-700 transition-colors whitespace-nowrap font-medium w-full sm:w-auto lg:w-auto mt-1 sm:mt-0"
+                      >
+                        ✏️ Edit
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {/* Empty Slots - Only show if less than 4 players, hidden on mobile and desktop */}
+              {room && room.players.length < 4 && Array.from({ length: 4 - (room?.players.length || 0) }).map((_, index) => (
+                <div
+                  key={`empty - ${ index } `}
+                  className="p-2 sm:p-4 lg:p-2 rounded-lg sm:rounded-xl lg:rounded-lg border border-dashed border-gray-300 bg-gray-50 hidden sm:block lg:hidden"
+                >
+                  <div className="flex items-center gap-2 sm:gap-3 lg:gap-2">
+                    <div className="w-7 h-7 sm:w-12 sm:h-12 lg:w-8 lg:h-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-500 flex-shrink-0 text-sm sm:text-xl lg:text-base">
+                      ?
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-gray-800 flex items-center gap-1 flex-wrap text-xs sm:text-base lg:text-xs">
-                        <span className="truncate max-w-[60px] sm:max-w-none">{player.name}</span>
-                        {player.id === currentPlayerId && (
-                          <span className="text-[8px] sm:text-xs lg:text-[10px] bg-indigo-600 text-white px-1 py-0.5 rounded-full whitespace-nowrap">
-                            You
-                          </span>
-                        )}
-                        {index === 0 && (
-                          <span className="text-[8px] sm:text-xs lg:text-[10px] bg-yellow-500 text-white px-1 py-0.5 rounded-full whitespace-nowrap">
-                            Host
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-[10px] sm:text-sm lg:text-xs text-gray-500">
-                        {player.isReady ? '✓ Ready' : 'Waiting...'}
-                      </p>
+                      <p className="font-semibold text-gray-400 text-xs sm:text-base lg:text-xs">Waiting for player...</p>
+                      <p className="text-[10px] sm:text-sm lg:text-xs text-gray-400">Empty slot</p>
                     </div>
                   </div>
-                  {player.id === currentPlayerId && (
-                    <button
-                      onClick={openEditModal}
-                      className="px-2 sm:px-3 lg:px-2 py-1 sm:py-2 lg:py-1 bg-indigo-600 text-white text-[10px] sm:text-sm lg:text-xs rounded-md sm:rounded-lg hover:bg-indigo-700 transition-colors whitespace-nowrap font-medium w-full sm:w-auto lg:w-auto mt-1 sm:mt-0"
-                    >
-                      ✏️ Edit
-                    </button>
-                  )}
                 </div>
-              </div>
-            ))}
-
-            {/* Empty Slots - Only show if less than 4 players, hidden on mobile and desktop */}
-            {room && room.players.length < 4 && Array.from({ length: 4 - (room?.players.length || 0) }).map((_, index) => (
-              <div
-                key={`empty-${index}`}
-                className="p-2 sm:p-4 lg:p-2 rounded-lg sm:rounded-xl lg:rounded-lg border border-dashed border-gray-300 bg-gray-50 hidden sm:block lg:hidden"
-              >
-                <div className="flex items-center gap-2 sm:gap-3 lg:gap-2">
-                  <div className="w-7 h-7 sm:w-12 sm:h-12 lg:w-8 lg:h-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-500 flex-shrink-0 text-sm sm:text-xl lg:text-base">
-                    ?
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-gray-400 text-xs sm:text-base lg:text-xs">Waiting for player...</p>
-                    <p className="text-[10px] sm:text-sm lg:text-xs text-gray-400">Empty slot</p>
-                  </div>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
 
           {/* Start Game Button */}
           {canStartGame && (
@@ -539,11 +570,11 @@ export default function RoomPage() {
                       localStorage.setItem('gameLanguage', 'en');
                       play('click');
                     }}
-                    className={`py-3 sm:py-4 lg:py-3 px-4 sm:px-6 lg:px-4 rounded-lg sm:rounded-xl lg:rounded-lg font-bold text-sm sm:text-lg lg:text-base transition-all ${
-                      selectedLanguage === 'en'
-                        ? 'bg-blue-600 text-white ring-2 ring-blue-300 shadow-md'
-                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-                    }`}
+                    className={`py - 3 sm: py - 4 lg: py - 3 px - 4 sm: px - 6 lg: px - 4 rounded - lg sm: rounded - xl lg: rounded - lg font - bold text - sm sm: text - lg lg: text - base transition - all ${
+          selectedLanguage === 'en'
+            ? 'bg-blue-600 text-white ring-2 ring-blue-300 shadow-md'
+            : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+        } `}
                   >
                     🇬🇧 English
                   </button>
@@ -553,11 +584,11 @@ export default function RoomPage() {
                       localStorage.setItem('gameLanguage', 'hi');
                       play('click');
                     }}
-                    className={`py-3 sm:py-4 lg:py-3 px-4 sm:px-6 lg:px-4 rounded-lg sm:rounded-xl lg:rounded-lg font-bold text-sm sm:text-lg lg:text-base transition-all ${
-                      selectedLanguage === 'hi'
-                        ? 'bg-orange-600 text-white ring-2 ring-orange-300 shadow-md'
-                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-                    }`}
+                    className={`py - 3 sm: py - 4 lg: py - 3 px - 4 sm: px - 6 lg: px - 4 rounded - lg sm: rounded - xl lg: rounded - lg font - bold text - sm sm: text - lg lg: text - base transition - all ${
+          selectedLanguage === 'hi'
+            ? 'bg-orange-600 text-white ring-2 ring-orange-300 shadow-md'
+            : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+        } `}
                   >
                     🇮🇳 हिंदी
                   </button>
@@ -567,11 +598,11 @@ export default function RoomPage() {
                       localStorage.setItem('gameLanguage', 'kn');
                       play('click');
                     }}
-                    className={`py-3 sm:py-4 lg:py-3 px-4 sm:px-6 lg:px-4 rounded-lg sm:rounded-xl lg:rounded-lg font-bold text-sm sm:text-lg lg:text-base transition-all ${
-                      selectedLanguage === 'kn'
-                        ? 'bg-green-600 text-white ring-2 ring-green-300 shadow-md'
-                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-                    }`}
+                    className={`py - 3 sm: py - 4 lg: py - 3 px - 4 sm: px - 6 lg: px - 4 rounded - lg sm: rounded - xl lg: rounded - lg font - bold text - sm sm: text - lg lg: text - base transition - all ${
+          selectedLanguage === 'kn'
+            ? 'bg-green-600 text-white ring-2 ring-green-300 shadow-md'
+            : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+        } `}
                   >
                     🇮🇳 ಕನ್ನಡ
                   </button>
@@ -642,6 +673,13 @@ export default function RoomPage() {
             onSave={handleProfileSave}
           />
         )}
+
+        <CustomCardModal
+            isOpen={isCustomCardModalOpen}
+            onClose={() => !isCreatingCard && setIsCustomCardModalOpen(false)}
+            onSubmit={handleCreateCustomCard}
+            isSubmitting={isCreatingCard}
+        />
 
         {/* How to Play Button - Bottom Left on Mobile */}
         <HowToPlayButton position="bottom-left" />
