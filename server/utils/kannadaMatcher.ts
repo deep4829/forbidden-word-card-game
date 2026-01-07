@@ -21,14 +21,6 @@ if (GEMINI_KEY) {
 }
 
 /**
- * Detect if a string contains Kannada (Kannada script) characters
- */
-function isKannada(str: string): boolean {
-  const kannadaRegex = /[\u0C80-\u0CFF]/;
-  return kannadaRegex.test(str);
-}
-
-/**
  * Local fuzzy forbidden-word check to avoid false positives from the model
  */
 function locallyViolatesForbidden(guess: string, forbiddenWords: string[], threshold = 0.75): boolean {
@@ -41,6 +33,89 @@ function locallyViolatesForbidden(guess: string, forbiddenWords: string[], thres
     if (score >= threshold) return true;
   }
   return false;
+}
+
+/**
+ * Detect if a string contains Kannada (Kannada script) characters
+ */
+export function isKannada(str: string): boolean {
+  const kannadaRegex = /[\u0C80-\u0CFF]/;
+  return kannadaRegex.test(str);
+}
+
+/**
+ * Strict Kannada Clue Validator for Gameplay
+ * Handles agglutination, synonyms, and translations to detect cheating
+ */
+export async function validateKannadaClue(
+  clue: string,
+  target: string,
+  forbiddenWords: string[]
+): Promise<{ isValid: boolean; violationFound: string | null; explanation: string }> {
+  // If no model, fallback to a basic local check (though less powerful)
+  if (!model) {
+    const isForbidden = locallyViolatesForbidden(clue, [target, ...forbiddenWords], 0.8);
+    return {
+      isValid: !isForbidden,
+      violationFound: isForbidden ? 'Local fuzzy match' : null,
+      explanation: 'AI model not available. Used local fuzzy matching.'
+    };
+  }
+
+  const forbiddenList = forbiddenWords.join(', ');
+  const prompt = `Act as a strict Kannada Linguistic Judge for the game "Antigravity." Your job is to determine if a player's clue is legal or illegal.
+
+Inputs Provided:
+Target Word: ${target}
+Forbidden Words: ${forbiddenList}
+Player's Clue: ${clue}
+
+Validation Rules:
+1. Direct Match: If the clue contains the Target or any Forbidden Word (even in English script).
+2. Grammar/Inflection: In Kannada, words change suffixes (e.g., "ಮನೆಯಲ್ಲಿ", "ಮನೆಯಿಂದ", "ಮನೆ"). If the root word is the same as any forbidden word, it is a violation (INVALID).
+3. Semantic Meaning: If the clue is a direct synonym (Samanarthaka) of a forbidden word, it is INVALID.
+4. Translation: If the player uses the English version of a forbidden word, it is INVALID.
+
+Output strictly in JSON: { "is_valid": boolean, "violation_found": "string or null", "explanation": "Brief reason in Kannada why it was accepted or rejected" }`;
+
+  try {
+    const result = await model.generateContent(prompt);
+    let responseText = '';
+    try {
+      if (result?.response?.text) {
+        responseText = result.response.text();
+      } else if (typeof result === 'string') {
+        responseText = result;
+      } else if (result?.text) {
+        responseText = result.text;
+      } else {
+        responseText = JSON.stringify(result);
+      }
+    } catch (e) {
+      responseText = JSON.stringify(result);
+    }
+
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('No JSON found in response');
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    return {
+      isValid: !!parsed.is_valid,
+      violationFound: parsed.violation_found || null,
+      explanation: parsed.explanation || ''
+    };
+  } catch (error) {
+    console.error('validateKannadaClue error:', error);
+    // Fallback to local check
+    const isForbidden = locallyViolatesForbidden(clue, [target, ...forbiddenWords], 0.8);
+    return {
+      isValid: !isForbidden,
+      violationFound: isForbidden ? 'Local fallback' : null,
+      explanation: 'ವ್ಯಾಲಿಡೇಶನ್ ಸಮಯದಲ್ಲಿ ದೋಷ ಸಂಭವಿಸಿದೆ. ಸ್ಥಳೀಯ ತಪಾಸಣೆ ಬಳಸಲಾಗಿದೆ.'
+    };
+  }
 }
 
 /**

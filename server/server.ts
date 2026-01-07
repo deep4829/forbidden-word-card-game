@@ -947,7 +947,7 @@ io.on('connection', (socket) => {
     // Check for forbidden words (language-aware)
     const mainWord = getCardWord(room.currentCard, room.language);
     const forbiddenWords = getCardForbiddenWords(room.currentCard, room.language);
-    const violations = await checkForbidden(transcript, [mainWord, ...forbiddenWords]);
+    const violations = await checkForbidden(transcript, [mainWord, ...forbiddenWords], mainWord);
 
     if (violations.length > 0) {
       // Remove the clue from the set since it was invalid (allow retry)
