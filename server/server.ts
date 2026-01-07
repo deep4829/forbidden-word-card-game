@@ -781,7 +781,7 @@ io.on('connection', (socket) => {
     try {
       if (data.useGemini && genAI) {
         console.log('[request-random-card] Using Gemini to generate card...');
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         const prompt = `Generate a random interesting concept/word for a party game like Taboo.
             The word should be in English.
             Also generate 5 forbidden words (in English) that are commonly associated with it.
@@ -814,13 +814,14 @@ io.on('connection', (socket) => {
               await new Promise(resolve => setTimeout(resolve, delay));
               continue;
             } else {
-              throw err; // Don't retry on other errors or final attempt
+              // On any other error or if retries are exhausted, break to fallback
+              console.warn(`[request-random-card] Gemini error (status ${err.status}): ${err.message}. Falling back to DB.`);
+              break;
             }
           }
         }
 
-        // If all retries fail, fall back to DB
-        console.warn('[request-random-card] Gemini unavailable after retries, falling back to DB...');
+        // If all retries fail or we broke out due to non-retryable error, fall back to DB
         const card = await getRandomCard();
         socket.emit('random-card-data', {
           mainWord: card.mainWord,
