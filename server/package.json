@@ -24,6 +24,7 @@
     "@supabase/supabase-js": "^2.86.0",
     "dotenv": "^16.6.1",
     "express": "^5.1.0",
+    "groq-sdk": "^0.37.0",
     "http": "^0.0.1-security",
     "natural": "^8.1.0",
     "socket.io": "^4.8.1",

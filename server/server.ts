@@ -14,7 +14,7 @@ import { checkForbidden } from './utils/forbiddenCheck';
 import { normalize } from './utils/textUtils';
 import { computePoints } from './utils/scoring';
 import { isMatchingGuess } from './utils/compareWords';
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import Groq from "groq-sdk";
 import { getRandomCard } from './lib/supabase';
 
 const app = express();
@@ -102,8 +102,8 @@ const roomRounds = new Map<string, number>();
 // Store clue count for current round in each room
 const roomClueCount = new Map<string, number>();
 
-const apiKey = process.env.GEMINI_API_KEY;
-const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+const groqKey = process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY; // Fallback to Gemini key name if that's what's set
+const groq = groqKey ? new Groq({ apiKey: groqKey }) : null;
 
 // Store all clues given in current round per room (for duplicate prevention)
 const roomCluesGiven = new Map<string, Set<string>>();
@@ -776,36 +776,45 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Handle request for a random card (Gemini or DB)
+  // Handle request for a random card (Groq or DB)
   socket.on('request-random-card', async (data: { useGemini: boolean }) => {
     let cardData: { mainWord: string; forbiddenWords: string[] } | null = null;
 
-    if (data.useGemini && genAI) {
+    if (data.useGemini && groq) {
       try {
-        console.log('[request-random-card] Using Gemini to generate card...');
-        // gemini-2.0-flash has been working for the user based on previous logs (though hitting quota)
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-        const prompt = `Generate a random interesting concept/word for a party game like Taboo.
+        console.log('[request-random-card] Using Groq to generate card...');
+        const completion = await groq.chat.completions.create({
+          messages: [
+            {
+              role: "system",
+              content: "You are a helpful assistant that generates Taboo game cards in JSON format."
+            },
+            {
+              role: "user",
+              content: `Generate a random interesting concept/word for a party game like Taboo.
             The word should be in English.
             Also generate 5 forbidden words (in English) that are commonly associated with it.
             Return ONLY a valid JSON object with keys "mainWord" and "forbiddenWords". 
             Example: {"mainWord": "Beach", "forbiddenWords": ["Sand", "Ocean", "Sun", "Vacation", "Swim"]}. 
-            Do not include markdown formatting or backticks.`;
+            Do not include markdown formatting or backticks.`
+            }
+          ],
+          model: "llama-3.3-70b-versatile", // Use a fast and capable model
+          response_format: { type: "json_object" }
+        });
 
-        // Attempt generation with a simple retry
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text().trim().replace(/```json/g, '').replace(/```/g, '');
-        const json = JSON.parse(text);
-
-        if (json.mainWord && json.forbiddenWords) {
-          cardData = {
-            mainWord: json.mainWord,
-            forbiddenWords: json.forbiddenWords
-          };
+        const text = completion.choices[0]?.message?.content;
+        if (text) {
+          const json = JSON.parse(text);
+          if (json.mainWord && json.forbiddenWords) {
+            cardData = {
+              mainWord: json.mainWord,
+              forbiddenWords: json.forbiddenWords
+            };
+          }
         }
       } catch (err: any) {
-        console.warn(`[request-random-card] Gemini failed (status ${err.status}): ${err.message}. Moving to DB fallback.`);
+        console.warn(`[request-random-card] Groq failed: ${err.message}. Moving to DB fallback.`);
       }
     }
 
