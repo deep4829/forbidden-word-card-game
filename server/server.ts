@@ -14,6 +14,8 @@ import { checkForbidden } from './utils/forbiddenCheck';
 import { normalize } from './utils/textUtils';
 import { computePoints } from './utils/scoring';
 import { isMatchingGuess } from './utils/compareWords';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getRandomCard } from './lib/supabase';
 
 const app = express();
 
@@ -99,6 +101,9 @@ const roomRounds = new Map<string, number>();
 
 // Store clue count for current round in each room
 const roomClueCount = new Map<string, number>();
+
+const apiKey = process.env.GEMINI_API_KEY;
+const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
 // Store all clues given in current round per room (for duplicate prevention)
 const roomCluesGiven = new Map<string, Set<string>>();
@@ -765,15 +770,49 @@ io.on('connection', (socket) => {
       // 4. Notify Client
       socket.emit('custom-card-created', { success: true, card: newCard });
 
-      // Optional: Immediately refresh deck for this room if desired? 
-      // For now, next game start will pick it up if cache is refreshed.
-      // Or we can inject it into the current room deck if logic allows.
-
     } catch (err) {
       console.error('Error creating custom card:', err);
       socket.emit('error', { message: 'Failed to create custom card.' });
     }
   });
+
+  // Handle request for a random card (Gemini or DB)
+  socket.on('request-random-card', async (data: { useGemini: boolean }) => {
+    try {
+      if (data.useGemini && genAI) {
+        console.log('[request-random-card] Using Gemini to generate card...');
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const prompt = `Generate a random interesting concept/word for a party game like Taboo.
+            The word should be in English.
+            Also generate 5 forbidden words (in English) that are commonly associated with it.
+            Return ONLY a valid JSON object with keys "mainWord" and "forbiddenWords". 
+            Example: {"mainWord": "Beach", "forbiddenWords": ["Sand", "Ocean", "Sun", "Vacation", "Swim"]}. 
+            Do not include markdown formatting or backticks.`;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text().trim().replace(/```json/g, '').replace(/```/g, '');
+        const json = JSON.parse(text);
+
+        socket.emit('random-card-data', {
+          mainWord: json.mainWord,
+          forbiddenWords: json.forbiddenWords
+        });
+      } else {
+        console.log('[request-random-card] Falling back to DB for random card...');
+        // Fallback to fetching an existing card from DB
+        const card = await getRandomCard();
+        socket.emit('random-card-data', {
+          mainWord: card.mainWord,
+          forbiddenWords: card.forbiddenWords
+        });
+      }
+    } catch (err) {
+      console.error('Error getting random card:', err);
+      socket.emit('error', { message: 'Failed to get random card.' });
+    }
+  });
+
   // Handle start-game event
   socket.on('start-game', async (data: string | { roomId: string; language?: 'en' | 'hi' }) => {
     // Handle both old format (just roomId string) and new format (object with language)

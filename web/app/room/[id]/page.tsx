@@ -439,8 +439,8 @@ export default function RoomPage() {
                         onClick={() => handleRoundsChange(value)}
                         disabled={room.maxRounds === value}
                         className={`py - 1 sm: py - 2 lg: py - 1 rounded - md sm: rounded - lg font - semibold text - xs sm: text - sm lg: text - xs transition - colors border ${selectedRounds === value
-                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
-                            : 'bg-white text-gray-700 border-gray-200 hover:border-indigo-400'
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                          : 'bg-white text-gray-700 border-gray-200 hover:border-indigo-400'
                           } ${room.maxRounds === value ? 'cursor-default opacity-80' : ''} `}
                       >
                         {value}
@@ -498,8 +498,8 @@ export default function RoomPage() {
                 <div
                   key={player.id}
                   className={`p - 2 sm: p - 4 lg: p - 2 rounded - lg sm: rounded - xl lg: rounded - lg border transition - all ${player.id === currentPlayerId
-                      ? 'bg-indigo-50 border-indigo-300'
-                      : 'bg-gray-50 border-gray-200'
+                    ? 'bg-indigo-50 border-indigo-300'
+                    : 'bg-gray-50 border-gray-200'
                     } `}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-3 lg:gap-2 lg:flex-row">
@@ -573,8 +573,8 @@ export default function RoomPage() {
                       play('click');
                     }}
                     className={`py - 3 sm: py - 4 lg: py - 3 px - 4 sm: px - 6 lg: px - 4 rounded - lg sm: rounded - xl lg: rounded - lg font - bold text - sm sm: text - lg lg: text - base transition - all ${selectedLanguage === 'en'
-                        ? 'bg-blue-600 text-white ring-2 ring-blue-300 shadow-md'
-                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                      ? 'bg-blue-600 text-white ring-2 ring-blue-300 shadow-md'
+                      : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
                       } `}
                   >
                     🇬🇧 English
@@ -586,8 +586,8 @@ export default function RoomPage() {
                       play('click');
                     }}
                     className={`py - 3 sm: py - 4 lg: py - 3 px - 4 sm: px - 6 lg: px - 4 rounded - lg sm: rounded - xl lg: rounded - lg font - bold text - sm sm: text - lg lg: text - base transition - all ${selectedLanguage === 'hi'
-                        ? 'bg-orange-600 text-white ring-2 ring-orange-300 shadow-md'
-                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                      ? 'bg-orange-600 text-white ring-2 ring-orange-300 shadow-md'
+                      : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
                       } `}
                   >
                     🇮🇳 हिंदी
@@ -599,8 +599,8 @@ export default function RoomPage() {
                       play('click');
                     }}
                     className={`py - 3 sm: py - 4 lg: py - 3 px - 4 sm: px - 6 lg: px - 4 rounded - lg sm: rounded - xl lg: rounded - lg font - bold text - sm sm: text - lg lg: text - base transition - all ${selectedLanguage === 'kn'
-                        ? 'bg-green-600 text-white ring-2 ring-green-300 shadow-md'
-                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                      ? 'bg-green-600 text-white ring-2 ring-green-300 shadow-md'
+                      : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
                       } `}
                   >
                     🇮🇳 ಕನ್ನಡ
@@ -678,6 +678,7 @@ export default function RoomPage() {
           onClose={() => !isCreatingCard && setIsCustomCardModalOpen(false)}
           onSubmit={handleCreateCustomCard}
           isSubmitting={isCreatingCard}
+          socket={socket}
         />
 
         {/* How to Play Button - Bottom Left on Mobile */}
