@@ -778,11 +778,13 @@ io.on('connection', (socket) => {
 
   // Handle request for a random card (Gemini or DB)
   socket.on('request-random-card', async (data: { useGemini: boolean }) => {
-    try {
-      if (data.useGemini && genAI) {
+    let cardData: { mainWord: string; forbiddenWords: string[] } | null = null;
+
+    if (data.useGemini && genAI) {
+      try {
         console.log('[request-random-card] Using Gemini to generate card...');
-        // Use gemini-1.5-flash-latest for better compatibility
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+        // gemini-2.0-flash has been working for the user based on previous logs (though hitting quota)
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
         const prompt = `Generate a random interesting concept/word for a party game like Taboo.
             The word should be in English.
             Also generate 5 forbidden words (in English) that are commonly associated with it.
@@ -790,69 +792,42 @@ io.on('connection', (socket) => {
             Example: {"mainWord": "Beach", "forbiddenWords": ["Sand", "Ocean", "Sun", "Vacation", "Swim"]}. 
             Do not include markdown formatting or backticks.`;
 
-        let lastError: any = null;
-        const MAX_RETRIES = 3;
-        const INITIAL_DELAY = 1000; // 1 second
+        // Attempt generation with a simple retry
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text().trim().replace(/```json/g, '').replace(/```/g, '');
+        const json = JSON.parse(text);
 
-        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-          try {
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            const text = response.text().trim().replace(/```json/g, '').replace(/```/g, '');
-            const json = JSON.parse(text);
-
-            socket.emit('random-card-data', {
-              mainWord: json.mainWord,
-              forbiddenWords: json.forbiddenWords
-            });
-            return; // Success, exit
-          } catch (err: any) {
-            lastError = err;
-            // Check if it's a 503 (overloaded) or 429 (rate limit) - retry these
-            if ((err.status === 503 || err.status === 429) && attempt < MAX_RETRIES - 1) {
-              const delay = INITIAL_DELAY * Math.pow(2, attempt); // exponential backoff
-              console.log(`[request-random-card] Attempt ${attempt + 1} failed with status ${err.status}, retrying in ${delay}ms...`);
-              await new Promise(resolve => setTimeout(resolve, delay));
-              continue;
-            } else if (err.status === 404 && attempt === 0) {
-              // If 1.5-flash is 404, try 1.5-pro as a one-time alternative
-              console.log(`[request-random-card] gemini-1.5-flash-latest not found, trying gemini-1.5-pro...`);
-              const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
-              const result = await proModel.generateContent(prompt);
-              const response = await result.response;
-              const text = response.text().trim().replace(/```json/g, '').replace(/```/g, '');
-              const json = JSON.parse(text);
-              socket.emit('random-card-data', {
-                mainWord: json.mainWord,
-                forbiddenWords: json.forbiddenWords
-              });
-              return;
-            } else {
-              // On any other error or if retries are exhausted, break to fallback
-              console.warn(`[request-random-card] Gemini error (status ${err.status}): ${err.message}. Falling back to DB.`);
-              break;
-            }
-          }
+        if (json.mainWord && json.forbiddenWords) {
+          cardData = {
+            mainWord: json.mainWord,
+            forbiddenWords: json.forbiddenWords
+          };
         }
-
-        // If all retries fail or we broke out due to non-retryable error, fall back to DB
-        const card = await getRandomCard();
-        socket.emit('random-card-data', {
-          mainWord: card.mainWord,
-          forbiddenWords: card.forbiddenWords
-        });
-      } else {
-        console.log('[request-random-card] Falling back to DB for random card...');
-        // Fallback to fetching an existing card from DB
-        const card = await getRandomCard();
-        socket.emit('random-card-data', {
-          mainWord: card.mainWord,
-          forbiddenWords: card.forbiddenWords
-        });
+      } catch (err: any) {
+        console.warn(`[request-random-card] Gemini failed (status ${err.status}): ${err.message}. Moving to DB fallback.`);
       }
-    } catch (err) {
-      console.error('Error getting random card:', err);
-      socket.emit('error', { message: 'Failed to get random card.' });
+    }
+
+    // If AI failed, was skipped, or didn't return valid data, use DB fallback
+    if (!cardData) {
+      try {
+        console.log('[request-random-card] Fetching from DB...');
+        const card = await getRandomCard();
+        cardData = {
+          mainWord: card.mainWord,
+          forbiddenWords: card.forbiddenWords
+        };
+      } catch (err) {
+        console.error('[request-random-card] DB Fallback failed:', err);
+        socket.emit('error', { message: 'Failed to get random card data from AI or Database.' });
+        return;
+      }
+    }
+
+    // Send whatever we got (AI or DB)
+    if (cardData) {
+      socket.emit('random-card-data', cardData);
     }
   });
 
