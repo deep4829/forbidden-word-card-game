@@ -781,7 +781,7 @@ io.on('connection', (socket) => {
     try {
       if (data.useGemini && genAI) {
         console.log('[request-random-card] Using Gemini to generate card...');
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const prompt = `Generate a random interesting concept/word for a party game like Taboo.
             The word should be in English.
             Also generate 5 forbidden words (in English) that are commonly associated with it.
