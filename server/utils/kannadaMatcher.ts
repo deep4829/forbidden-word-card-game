@@ -1,16 +1,22 @@
-import Groq from 'groq-sdk';
+/**
+ * Kannada word matching using Google Gemini API
+ * Handles Kannada script similarity checking with semantic understanding
+ */
+
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { compareTwoStrings } from 'string-similarity';
 import { normalize } from './textUtils';
 
-// Initialize Groq API (if key present)
-const GROQ_KEY = process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY || '';
-let groq: Groq | null = null;
-if (GROQ_KEY) {
+// Initialize Gemini API (if key present)
+const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
+let model: any = null;
+if (GEMINI_KEY) {
   try {
-    groq = new Groq({ apiKey: GROQ_KEY });
+    const genAI = new GoogleGenerativeAI(GEMINI_KEY);
+    model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
   } catch (e) {
-    console.warn('Groq init failed, will fallback to local similarity checks:', e);
-    groq = null;
+    console.warn('Gemini init failed, will fallback to local similarity checks:', e);
+    model = null;
   }
 }
 
@@ -61,8 +67,8 @@ export async function checkKannadaSimilarity(
     }
   }
 
-  // If Groq client not configured, fall back to local similarity check
-  if (!groq) {
+  // If Gemini model not configured, fall back to local similarity check
+  if (!model) {
     const score = compareTwoStrings(normalize(cleanGuess), normalize(cleanTarget));
     const isSimilar = score >= 0.75;
     return { isSimilar, score, reason: 'Local similarity fallback', violatesForbidden: false };
@@ -73,33 +79,40 @@ export async function checkKannadaSimilarity(
   const prompt = `You are a strict Kannada word similarity judge for a word-guessing game.\n\nTarget: "${cleanTarget}"\nGuess: "${cleanGuess}"\nForbidden words: "${forbiddenList}"\n\nReturn ONLY valid JSON with these fields: {"isSimilar": boolean, "score": number, "reason": string, "violatesForbidden": boolean}.\n- Score must be between 0 and 1.\n- Be conservative: avoid marking guesses as forbidden unless they clearly match a forbidden word (>0.85).\n- Consider score >= 0.80 as a match.\n`;
 
   try {
-    const completion = await groq.chat.completions.create({
-      messages: [
-        {
-          role: "system",
-          content: "You are a Kannada language expert and similarity judge."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      model: "llama-3.3-70b-versatile",
-      response_format: { type: "json_object" }
-    });
+    const result = await model.generateContent(prompt);
+    // Different SDKs return different shapes; attempt to extract text safely
+    let responseText = '';
+    try {
+      if (result?.response?.text) {
+        responseText = result.response.text();
+      } else if (typeof result === 'string') {
+        responseText = result;
+      } else if (result?.text) {
+        responseText = result.text;
+      } else {
+        responseText = JSON.stringify(result);
+      }
+    } catch (e) {
+      responseText = JSON.stringify(result);
+    }
 
-    const responseText = completion.choices[0]?.message?.content || '{}';
-    const parsed = JSON.parse(responseText);
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.warn('Unable to parse Gemini response, falling back to local similarity:', responseText);
+      const score = compareTwoStrings(normalize(cleanGuess), normalize(cleanTarget));
+      return { isSimilar: score >= 0.75, score, reason: 'Fallback local similarity (parse failure)', violatesForbidden: false };
+    }
 
+    const parsed = JSON.parse(jsonMatch[0]);
     if (parsed.violatesForbidden) {
       return { isSimilar: false, score: 0, reason: 'Model flagged forbidden', violatesForbidden: true };
     }
 
     const score = typeof parsed.score === 'number' ? parsed.score : 0;
     const isSimilar = parsed.isSimilar || score >= 0.80;
-    return { isSimilar, score, reason: parsed.reason || 'Groq result', violatesForbidden: false };
-  } catch (error: any) {
-    console.error('Groq error, falling back to local similarity:', error);
+    return { isSimilar, score, reason: parsed.reason || 'Gemini result', violatesForbidden: false };
+  } catch (error) {
+    console.error('Gemini error, falling back to local similarity:', error);
     const score = compareTwoStrings(normalize(cleanGuess), normalize(cleanTarget));
     return { isSimilar: score >= 0.75, score, reason: 'Fallback local similarity (exception)', violatesForbidden: false };
   }
