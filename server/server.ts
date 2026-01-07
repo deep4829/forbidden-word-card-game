@@ -714,7 +714,7 @@ io.on('connection', (socket) => {
     console.log(`[create-custom-card] Room ${roomId} creating card: ${mainWord}`);
 
     try {
-      // 1. Fetch Translations
+      // 1. Fetch Translations (Auto-detect and translate to EN, HI, KN)
       console.log(`  - Translating ${mainWord}...`);
       const mainTrans = await translateWord(mainWord);
 
@@ -724,14 +724,14 @@ io.on('connection', (socket) => {
       );
       console.log(`  - Translations done in ${Date.now() - forbiddenTransStart}ms`);
 
-      // 2. Fetch Images
-      console.log(`  - Fetching images...`);
-      const mainImage = await fetchImageForWord(mainWord);
+      // 2. Fetch Images (Use English translation for better results)
+      console.log(`  - Fetching images using "${mainTrans.en}"...`);
+      const mainImage = await fetchImageForWord(mainTrans.en);
 
       const forbiddenImagesStart = Date.now();
       const forbiddenImages = [];
-      for (const word of forbiddenWords) {
-        const img = await fetchImageForWord(word);
+      for (const t of forbiddenTrans) {
+        const img = await fetchImageForWord(t.en);
         forbiddenImages.push(img || "");
         // tiny delay to be nice to API
         await new Promise(r => setTimeout(r, 200));
@@ -742,14 +742,14 @@ io.on('connection', (socket) => {
       const { data: newCard, error } = await supabase
         .from('cards')
         .insert({
-          main_word: mainWord,
-          forbidden_words: forbiddenWords,
+          main_word: mainTrans.en,
+          forbidden_words: forbiddenTrans.map(t => t.en),
           main_word_hi: mainTrans.hi,
           forbidden_words_hi: forbiddenTrans.map(t => t.hi),
           main_word_kn: mainTrans.kn,
           forbidden_words_kn: forbiddenTrans.map(t => t.kn),
           image_url: mainImage,
-          forbidden_word_image_urls: forbiddenImages,
+          forbidden_word_image_urls: forbiddenImages
         })
         .select()
         .single();
