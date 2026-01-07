@@ -159,14 +159,14 @@ Player's Guess: ${cleanGuess}
 Forbidden Words: ${forbiddenList}
 
 Rules:
-1. Root Word Match: If the guess and target share the same root word, it's a MATCH (e.g., "ಮನೆಯಲ್ಲಿ" matches "ಮನೆ"). Kannada agglutination/suffixes should be ignored if the core meaning is the same.
-2. Synonyms: If the guess is a direct synonym (Samanarthaka) that clearly refers to the target, it's a MATCH.
-3. Forbidden Check: If the guess is more similar to a FORBIDDEN word than the target, mark it as violatesForbidden.
-4. Translation: If the player guesses the English version of the Kannada target, it's a MATCH.
+1. Strict Forbidden Check (PRIMARY): If the guess matches ANY Forbidden Word (directly or root word), you MUST set violatesForbidden to true and isSimilar to false. This is an "Illegal Guess".
+2. Root Word Match: If not forbidden, and the guess and target share the same root word, it's a MATCH.
+3. Synonyms: If not forbidden, and the guess is a direct synonym (Samanarthaka) for the target, it's a MATCH.
+4. Translation: If not forbidden, and the player guesses the English version of the Kannada target, it's a MATCH.
 
 Return ONLY valid JSON: { "isSimilar": boolean, "score": number, "reason": "string", "violatesForbidden": boolean }
-- Score (0.0 to 1.0) represents confidence in the match.
-- isSimilar should be true if it's a root match, synonym, or valid translation.`;
+- violatesForbidden MUST be true if the guess matches a forbidden word, even if it also matches the target.
+- isSimilar MUST be false if violatesForbidden is true. village.`;
 
   try {
     const result = await model.generateContent(prompt);

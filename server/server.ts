@@ -1073,10 +1073,27 @@ io.on('connection', (socket) => {
 
     // Check if guess matches target word using fuzzy matching
     // This handles spelling variations, phonetic similarities, typos, and for Kannada uses Gemini AI
-    // Use language-specific main word for comparison
     const targetWord = getCardWord(room.currentCard, room.language);
     const forbiddenWords = getCardForbiddenWords(room.currentCard, room.language);
-    if (await isMatchingGuess(guess, targetWord, forbiddenWords)) {
+    const matchResult = await isMatchingGuess(guess, targetWord, forbiddenWords);
+
+    if (matchResult.isForbidden) {
+      // Illegal guess! The player said a forbidden word.
+      // Reset guess count since it was illegal (or keep it as a penalty?)
+      // The user wants a "strict validation check" and reject as "Illegal Guess".
+      // Let's add a penalty or just inform them.
+      socket.emit('illegal-guess', {
+        message: `Illegal Guess! You mentioned a forbidden word similar to: ${matchResult.reason}`,
+        guess
+      });
+
+      console.log(`Illegal Guess in room ${roomId}: "${guess}" by ${guesser.name} (Forbidden word violation)`);
+
+      // Still mark as having guessed for this clue (to prevent spamming until next clue)
+      return;
+    }
+
+    if (matchResult.isMatch) {
       // Correct guess!
       const clueCount = roomClueCount.get(roomId) || 0;
       const points = computePoints(clueCount);
