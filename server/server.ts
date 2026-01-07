@@ -781,7 +781,7 @@ io.on('connection', (socket) => {
     try {
       if (data.useGemini && genAI) {
         console.log('[request-random-card] Using Gemini to generate card...');
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
         const prompt = `Generate a random interesting concept/word for a party game like Taboo.
             The word should be in English.
             Also generate 5 forbidden words (in English) that are commonly associated with it.
@@ -789,14 +789,42 @@ io.on('connection', (socket) => {
             Example: {"mainWord": "Beach", "forbiddenWords": ["Sand", "Ocean", "Sun", "Vacation", "Swim"]}. 
             Do not include markdown formatting or backticks.`;
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text().trim().replace(/```json/g, '').replace(/```/g, '');
-        const json = JSON.parse(text);
+        let lastError: any = null;
+        const MAX_RETRIES = 3;
+        const INITIAL_DELAY = 1000; // 1 second
 
+        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+          try {
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            const text = response.text().trim().replace(/```json/g, '').replace(/```/g, '');
+            const json = JSON.parse(text);
+
+            socket.emit('random-card-data', {
+              mainWord: json.mainWord,
+              forbiddenWords: json.forbiddenWords
+            });
+            return; // Success, exit
+          } catch (err: any) {
+            lastError = err;
+            // Check if it's a 503 (overloaded) or 429 (rate limit) - retry these
+            if ((err.status === 503 || err.status === 429) && attempt < MAX_RETRIES - 1) {
+              const delay = INITIAL_DELAY * Math.pow(2, attempt); // exponential backoff
+              console.log(`[request-random-card] Attempt ${attempt + 1} failed with status ${err.status}, retrying in ${delay}ms...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+              continue;
+            } else {
+              throw err; // Don't retry on other errors or final attempt
+            }
+          }
+        }
+
+        // If all retries fail, fall back to DB
+        console.warn('[request-random-card] Gemini unavailable after retries, falling back to DB...');
+        const card = await getRandomCard();
         socket.emit('random-card-data', {
-          mainWord: json.mainWord,
-          forbiddenWords: json.forbiddenWords
+          mainWord: card.mainWord,
+          forbiddenWords: card.forbiddenWords
         });
       } else {
         console.log('[request-random-card] Falling back to DB for random card...');
