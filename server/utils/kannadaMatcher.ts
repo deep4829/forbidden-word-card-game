@@ -149,13 +149,27 @@ export async function checkKannadaSimilarity(
     return { isSimilar, score, reason: 'Local similarity fallback', violatesForbidden: false };
   }
 
-  // Conservative model prompt: ask for numeric similarity only and to avoid false positives
+  // Robust linguistic prompt: handle agglutination, root words, and synonyms
   const forbiddenList = forbiddenWords && forbiddenWords.length ? forbiddenWords.join(', ') : 'none';
-  const prompt = `You are a strict Kannada word similarity judge for a word-guessing game.\n\nTarget: "${cleanTarget}"\nGuess: "${cleanGuess}"\nForbidden words: "${forbiddenList}"\n\nReturn ONLY valid JSON with these fields: {"isSimilar": boolean, "score": number, "reason": string, "violatesForbidden": boolean}.\n- Score must be between 0 and 1.\n- Be conservative: avoid marking guesses as forbidden unless they clearly match a forbidden word (>0.85).\n- Consider score >= 0.80 as a match.\n`;
+  const prompt = `Act as a Kannada Linguistic Judge for a word-guessing game. Your job is to determine if the player's guess matches the target word.
+
+Inputs:
+Target Word: ${cleanTarget}
+Player's Guess: ${cleanGuess}
+Forbidden Words: ${forbiddenList}
+
+Rules:
+1. Root Word Match: If the guess and target share the same root word, it's a MATCH (e.g., "ಮನೆಯಲ್ಲಿ" matches "ಮನೆ"). Kannada agglutination/suffixes should be ignored if the core meaning is the same.
+2. Synonyms: If the guess is a direct synonym (Samanarthaka) that clearly refers to the target, it's a MATCH.
+3. Forbidden Check: If the guess is more similar to a FORBIDDEN word than the target, mark it as violatesForbidden.
+4. Translation: If the player guesses the English version of the Kannada target, it's a MATCH.
+
+Return ONLY valid JSON: { "isSimilar": boolean, "score": number, "reason": "string", "violatesForbidden": boolean }
+- Score (0.0 to 1.0) represents confidence in the match.
+- isSimilar should be true if it's a root match, synonym, or valid translation.`;
 
   try {
     const result = await model.generateContent(prompt);
-    // Different SDKs return different shapes; attempt to extract text safely
     let responseText = '';
     try {
       if (result?.response?.text) {
@@ -185,7 +199,7 @@ export async function checkKannadaSimilarity(
 
     const score = typeof parsed.score === 'number' ? parsed.score : 0;
     const isSimilar = parsed.isSimilar || score >= 0.80;
-    return { isSimilar, score, reason: parsed.reason || 'Gemini result', violatesForbidden: false };
+    return { isSimilar, score, reason: parsed.reason || 'Gemini linguistic result', violatesForbidden: false };
   } catch (error) {
     console.error('Gemini error, falling back to local similarity:', error);
     const score = compareTwoStrings(normalize(cleanGuess), normalize(cleanTarget));
