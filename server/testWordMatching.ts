@@ -13,34 +13,34 @@ const testCases: Array<[string, string, boolean]> = [
   ['airplane', 'airplane', true],
   ['AIRPLANE', 'airplane', true],
   ['Air-Plane', 'airplane', true],
-  
+
   // Spelling variations (the main issue)
   ['aeroplane', 'airplane', true],
   ['airplane', 'aeroplane', true],
-  
+
   // British vs American spelling
   ['colour', 'color', true],
   ['color', 'colour', true],
   ['theatre', 'theater', true],
   ['theater', 'theatre', true],
-  
+
   // Common typos
   ['airplan', 'airplane', true],
   ['airplne', 'airplane', true],
   ['colr', 'color', true],
-  
+
   // Phonetically similar
   ['gray', 'grey', true],
   ['grey', 'gray', true],
   ['donut', 'doughnut', true],
   ['doughnut', 'donut', true],
-  
+
   // Should NOT match
   ['car', 'airplane', false],
   ['house', 'home', false],
   ['red', 'blue', false],
   ['cat', 'dog', false],
-  
+
   // Edge cases
   ['air plane', 'airplane', true],
   ['air-plane', 'airplane', true],
@@ -56,8 +56,8 @@ console.log('Running tests...\n');
   for (let index = 0; index < testCases.length; index++) {
     const [guess, target, expected] = testCases[index];
     const result = await isMatchingGuess(guess, target);
-    const testPassed = result === expected;
-    
+    const testPassed = result.isMatch === expected;
+
     if (testPassed) {
       passed++;
       console.log(`✅ Test ${index + 1}: PASSED`);
@@ -65,7 +65,7 @@ console.log('Running tests...\n');
       failed++;
       console.log(`❌ Test ${index + 1}: FAILED`);
       console.log(`   Expected: "${guess}" ${expected ? 'SHOULD' : 'SHOULD NOT'} match "${target}"`);
-      console.log(`   Got: ${result ? 'MATCH' : 'NO MATCH'}\n`);
+      console.log(`   Got: ${result.isMatch ? 'MATCH' : 'NO MATCH'} (Reason: ${result.reason})\n`);
     }
   }
 
