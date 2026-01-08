@@ -13,7 +13,7 @@ let model: any = null;
 if (GEMINI_KEY) {
   try {
     const genAI = new GoogleGenerativeAI(GEMINI_KEY);
-    model = genAI.getGenerativeModel({ model: 'gemini-embedding-1.0' });
+    model = genAI.getGenerativeModel({ model: 'gemini-robotics-er-1.5-preview' });
   } catch (e) {
     console.warn('Gemini init failed, will fallback to local similarity checks:', e);
     model = null;
