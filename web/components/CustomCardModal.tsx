@@ -119,7 +119,7 @@ export default function CustomCardModal({ isOpen, onClose, onSubmit, isSubmittin
                         {/* Main Word */}
                         <div>
                             <label className="block text-sm font-bold text-gray-700 mb-1">
-                                Target Word (English)
+                                Target Word
                             </label>
                             <input
                                 type="text"
@@ -134,7 +134,7 @@ export default function CustomCardModal({ isOpen, onClose, onSubmit, isSubmittin
                         {/* Forbidden Words */}
                         <div>
                             <label className="block text-sm font-bold text-gray-700 mb-2">
-                                Forbidden Words (English)
+                                Forbidden Words
                             </label>
                             <div className="space-y-2">
                                 {forbiddenWords.map((word, idx) => (
