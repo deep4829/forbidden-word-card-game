@@ -1051,18 +1051,90 @@ io.on('connection', (socket) => {
     const matchResult = await isMatchingGuess(guess, targetWord, forbiddenWords);
 
     if (matchResult.isForbidden) {
-      // Illegal guess! The player said a forbidden word.
-      // Reset guess count since it was illegal (or keep it as a penalty?)
-      // The user wants a "strict validation check" and reject as "Illegal Guess".
-      // Let's add a penalty or just inform them.
-      socket.emit('illegal-guess', {
+      // Illegal guess: treat as an incorrect guess (do NOT end the round).
+      socket.emit('guess-result', {
+        correct: false,
+        illegal: true,
         message: `Illegal Guess! You mentioned a forbidden word similar to: ${matchResult.reason}`,
-        guess
+        guesserId: socket.id,
+        guesserName: guesser.name,
+        guess,
+        guessesUsed: guesser.guessesUsed,
+        room,
       });
 
       console.log(`Illegal Guess in room ${roomId}: "${guess}" by ${guesser.name} (Forbidden word violation)`);
 
-      // Still mark as having guessed for this clue (to prevent spamming until next clue)
+      // Check if all non-speaker players have guessed (same logic as incorrect guess)
+      const nonSpeakerPlayers = room.players.filter((p) => p.id !== room.currentClueGiver);
+      const allPlayersGuessed = nonSpeakerPlayers.every((p) => playersWhoGuessed.has(p.id));
+
+      if (allPlayersGuessed) {
+        console.log(`[socket] All players have guessed in room ${roomId} (after illegal guess). Switching back to SPEAKER phase.`);
+        roomCluePhase.set(roomId, 'speaker');
+        roomPlayersWhoGuessed.set(roomId, new Set()); // Reset for next clue
+
+        io.to(roomId).emit('phase-changed', {
+          phase: 'speaker',
+          message: 'All players have guessed! Waiting for the next clue...',
+        });
+      }
+
+      // Check if all guessers have exhausted their guesses and auto-advance if so
+      const allGuessersExhausted = room.players
+        .filter((p) => p.id !== room.currentClueGiver)
+        .every((p) => (p.guessesUsed || 0) >= maxGuesses);
+
+      if (allGuessersExhausted) {
+        console.log(`[socket] All guessers exhausted in room ${roomId} (after illegal guess). Auto-advancing round...`);
+
+        const previousCard = room.currentCard;
+        const oldSpeakerId = room.currentClueGiver;
+        const roundOutcome = endRound(room, room.currentClueGiver!, socket.id);
+        const continueGame = !roundOutcome.gameOver;
+
+        if (continueGame) {
+          const nextCard = await drawNextCard(room);
+          room.currentCard = nextCard;
+          roomCluePhase.set(roomId, 'speaker');
+          roomPlayersWhoGuessed.set(roomId, new Set());
+        } else {
+          room.currentCard = null;
+          roomCluePhase.delete(roomId);
+          roomPlayersWhoGuessed.delete(roomId);
+        }
+
+        io.to(roomId).emit('round-ended', {
+          success: false,
+          reason: 'All guesses exhausted',
+          targetWord: previousCard?.mainWord,
+          speakerId: oldSpeakerId,
+          room,
+          roundNumber: roundOutcome.finishedRound,
+          nextRoundNumber: continueGame ? (roomRounds.get(room.id) || null) : null,
+        });
+
+        io.to(roomId).emit('score-updated', {
+          room,
+        });
+
+        if (continueGame && roundOutcome.nextSpeakerId && room.currentCard) {
+          io.to(roundOutcome.nextSpeakerId).emit('card-assigned', {
+            card: room.currentCard,
+          });
+        } else if (!continueGame) {
+          const leaderboard = [...room.players].sort((a, b) => b.score - a.score);
+          io.to(roomId).emit('game-ended', {
+            roomId,
+            room,
+            leaderboard,
+            totalRounds: room.maxRounds,
+            reason: 'max_rounds_reached',
+            finishedRound: roundOutcome.finishedRound,
+          });
+        }
+      }
+
       return;
     }
 
